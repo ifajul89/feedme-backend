@@ -1,23 +1,24 @@
 import express, { NextFunction, Request, Response } from 'express';
-import { CarControllers } from './car.controller';
+import { MealMenuControllers } from './mealMenu.controller';
 import auth from '../../middleware/auth';
 import { USER_ROLE } from '../user/user.interface';
 import validateRequest from '../../middleware/validateRequest';
 import {
-  carValidationSchema,
-  carUpdateValidationSchema,
-} from './car.validation';
+  mealMenuValidationSchema,
+  mealMenuUpdateValidationSchema,
+} from './mealMenu.validation';
 import { upload } from '../../utils/sendImageCloudinary';
 import { sendImageToCloudinary } from '../../utils/sendImageCloudinary';
+
 const router = express.Router();
 
-// Direct handler for car creation with file upload
+// Direct handler for meal menu creation with file upload
 router.post(
   '/',
-  auth(USER_ROLE.admin),
+  auth(USER_ROLE.provider),
   (req: Request, res: Response, next: NextFunction) => {
     console.log(
-      'Post car endpoint hit with content-type:',
+      'Post meal menu endpoint hit with content-type:',
       req.headers['content-type'],
     );
 
@@ -79,7 +80,7 @@ router.post(
 
           try {
             // Upload to Cloudinary directly
-            const imageName = req.body.name || 'untitled_car';
+            const imageName = req.body.name || 'untitled_meal';
             const { secure_url } = await sendImageToCloudinary(
               imageName,
               imageSource,
@@ -102,7 +103,7 @@ router.post(
         }
 
         // Validate the body data
-        const validationResult = carValidationSchema.safeParse({
+        const validationResult = mealMenuValidationSchema.safeParse({
           body: req.body,
         });
         if (!validationResult.success) {
@@ -117,7 +118,7 @@ router.post(
         // Forward to controller
         next();
       } catch (error: unknown) {
-        console.error('General error in car creation:', error);
+        console.error('General error in meal menu creation:', error);
         res.status(500).json({
           success: false,
           message: 'Server error',
@@ -126,25 +127,28 @@ router.post(
       }
     });
   },
-  CarControllers.createCar,
+  MealMenuControllers.createMealMenu,
 );
 
-// 2. Get All Cars
-router.get('/', CarControllers.getCars);
+// 2. Get All Meal Menus
+router.get('/', MealMenuControllers.getMealMenus);
 
-// 3. Get a Specific Car
-router.get('/:id', CarControllers.getSpecificCar);
+// 4. Get Provider's Meal Menus
+router.get('/provider/:providerId', MealMenuControllers.getProviderMealMenus);
 
-// 4. Delete a Car
-router.delete('/:id', auth(USER_ROLE.admin), CarControllers.deleteCar);
+// 3. Get a Specific Meal Menu
+router.get('/:id', MealMenuControllers.getSpecificMealMenu);
 
-// 5. Update a Car
+// 5. Delete a Meal Menu
+router.delete('/:id', auth(USER_ROLE.provider), MealMenuControllers.deleteMealMenu);
+
+// 6. Update a Meal Menu
 router.patch(
   '/:id',
-  auth(USER_ROLE.admin),
+  auth(USER_ROLE.provider),
   (req: Request, res: Response, next: NextFunction) => {
     console.log(
-      'Update car endpoint hit with content-type:',
+      'Update meal menu endpoint hit with content-type:',
       req.headers['content-type'],
     );
 
@@ -206,7 +210,7 @@ router.patch(
 
           try {
             // Upload to Cloudinary directly
-            const imageName = req.body.name || `car_${req.params.id}`;
+            const imageName = req.body.name || `meal_${req.params.id}`;
             const { secure_url } = await sendImageToCloudinary(
               imageName,
               imageSource,
@@ -229,7 +233,7 @@ router.patch(
         }
 
         // Validate the body data for update
-        const validationResult = carUpdateValidationSchema.safeParse({
+        const validationResult = mealMenuUpdateValidationSchema.safeParse({
           body: req.body,
         });
         if (!validationResult.success) {
@@ -244,7 +248,7 @@ router.patch(
         // Forward to controller
         next();
       } catch (error: unknown) {
-        console.error('General error in car update:', error);
+        console.error('General error in meal menu update:', error);
         res.status(500).json({
           success: false,
           message: 'Server error',
@@ -253,7 +257,7 @@ router.patch(
       }
     });
   },
-  CarControllers.updateCar,
+  MealMenuControllers.updateMealMenu,
 );
 
-export const CarRoutes = router;
+export const MealMenuRoutes = router; 

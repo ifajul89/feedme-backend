@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { CarRoutes } from '../modules/car/car.route';
+import { MealMenuRoutes } from '../modules/mealMenu/mealMenu.route';
 import { orderRoutes } from '../modules/order/order.route';
 import authRoute from '../modules/Auth/auth.route';
 import { userRoutes } from '../modules/user/user.route';
@@ -109,8 +109,8 @@ const modelRouters = [
     route: authRoute,
   },
   {
-    path: '/cars',
-    route: CarRoutes,
+    path: '/providers/menu',
+    route: MealMenuRoutes,
   },
   {
     path: '/orders',

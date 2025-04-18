@@ -2,7 +2,6 @@
 
 import httpStatus from 'http-status';
 import AppError from '../../errors/appError';
-import { CarModel } from '../car/car.modle';
 import { OrderModel } from './order.model';
 import { orderUtils } from './order.utils';
 

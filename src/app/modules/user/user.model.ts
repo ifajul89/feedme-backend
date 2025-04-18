@@ -13,7 +13,7 @@ const UserSchema = new Schema<TUser>(
     email: { type: String, required: true, unique: true },
     // phone: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    role: { type: String, enum: ['admin', 'user'], default: 'user' },
+    role: { type: String, enum: ['admin', 'user', 'provider'], default: 'user' },
     isBlocked: { type: Boolean, default: false },
   },
   {

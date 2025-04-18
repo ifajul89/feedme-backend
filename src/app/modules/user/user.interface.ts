@@ -1,6 +1,7 @@
 export const USER_ROLE = {
   admin: 'admin',
   user: 'user',
+  provider: 'provider'
 } as const;
 
 export interface TUser {
@@ -10,7 +11,7 @@ export interface TUser {
   // address: string;
   // city: string;
   password: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'provider';
   isBlocked: boolean;
 }
 

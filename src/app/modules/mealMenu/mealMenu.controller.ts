@@ -1,17 +1,15 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
 import { NextFunction, Request, Response } from 'express';
 import sendResponse from '../../utils/sendResponse';
 import httpStatus from 'http-status';
 import catchAsync from '../../utils/catchAsync';
-import { CarServices } from './car.service';
+import { MealMenuServices } from './mealMenu.service';
 
-// 1. Create a Car
-const createCar = catchAsync(
+// 1. Create a Meal Menu
+const createMealMenu = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       console.log(
-        'In createCar controller - body keys:',
+        'In createMealMenu controller - body keys:',
         Object.keys(req.body),
       );
 
@@ -21,66 +19,69 @@ const createCar = catchAsync(
         console.warn('No image URL found in request body');
       }
 
-      // Create car record
-      const result = await CarServices.createCarInDB(req.body);
+      // Set the providerId from the authenticated user
+      req.body.providerId = req.user._id;
+
+      // Create meal menu record
+      const result = await MealMenuServices.createMealMenuInDB(req.body);
 
       sendResponse(res, {
         statusCode: httpStatus.OK,
         status: true,
-        message: 'Car is created successfully',
+        message: 'Meal menu is created successfully',
         data: result,
       });
     } catch (error: unknown) {
-      console.error('Error in createCar controller:', error);
+      console.error('Error in createMealMenu controller:', error);
       next(error);
     }
   },
 );
-// 2. Get All Cars
-const getCars = catchAsync(
+
+// 2. Get All Meal Menus
+const getMealMenus = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const result = await CarServices.getAllCarsFromDb(req.query);
-    // console.log(result);
-    // console.log(req.cookies);
+    const result = await MealMenuServices.getAllMealMenusFromDb(req.query);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       status: true,
-      message: 'Car are retrieved successfully',
+      message: 'Meal menus are retrieved successfully',
       data: result.data,
       meta: result.meta,
     });
-    // res.send(result)
   },
 );
-// 3. Get a Specific Car
-const getSpecificCar = catchAsync(
+
+// 3. Get a Specific Meal Menu
+const getSpecificMealMenu = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const id = req.params.id;
-    const result = await CarServices.getSpecificCar(id);
+    const result = await MealMenuServices.getSpecificMealMenu(id);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       status: true,
-      message: 'Car is retrieved successfully',
-      data: result,
-    });
-  },
-);
-// 5. Delete a Car
-const deleteCar = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const id = req.params.id;
-    const result = await CarServices.deleteCar(id);
-    sendResponse(res, {
-      statusCode: httpStatus.OK,
-      status: true,
-      message: 'Car is deleted successfully!',
+      message: 'Meal menu is retrieved successfully',
       data: result,
     });
   },
 );
 
-// 4. Update a Car
-const updateCar = catchAsync(
+// 4. Delete a Meal Menu
+const deleteMealMenu = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const id = req.params.id;
+    const result = await MealMenuServices.deleteMealMenu(id);
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      status: true,
+      message: 'Meal menu is deleted successfully!',
+      data: result,
+    });
+  },
+);
+
+// 5. Update a Meal Menu
+const updateMealMenu = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const id = req.params.id;
 
@@ -89,7 +90,7 @@ const updateCar = catchAsync(
       return sendResponse(res, {
         statusCode: httpStatus.BAD_REQUEST,
         status: false,
-        message: 'Car ID is required',
+        message: 'Meal menu ID is required',
         data: null,
       });
     }
@@ -104,21 +105,36 @@ const updateCar = catchAsync(
       });
     }
 
-    const result = await CarServices.updateCar(id, req.body);
+    const result = await MealMenuServices.updateMealMenu(id, req.body);
 
     sendResponse(res, {
       statusCode: httpStatus.OK,
       status: true,
-      message: 'Car is updated successfully',
+      message: 'Meal menu is updated successfully',
       data: result,
     });
   },
 );
 
-export const CarControllers = {
-  createCar,
-  getCars,
-  getSpecificCar,
-  updateCar,
-  deleteCar,
-};
+// 6. Get Provider's Meal Menus
+const getProviderMealMenus = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const providerId = req.params.providerId;
+    const result = await MealMenuServices.getProviderMealMenus(providerId);
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      status: true,
+      message: 'Provider meal menus are retrieved successfully',
+      data: result,
+    });
+  },
+);
+
+export const MealMenuControllers = {
+  createMealMenu,
+  getMealMenus,
+  getSpecificMealMenu,
+  updateMealMenu,
+  deleteMealMenu,
+  getProviderMealMenus,
+}; 
