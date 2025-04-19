@@ -15,6 +15,12 @@ const UserSchema = new Schema<TUser>(
     password: { type: String, required: true },
     role: { type: String, enum: ['admin', 'user', 'provider'], default: 'user' },
     isBlocked: { type: Boolean, default: false },
+    
+    // Optional fields
+    phone: { type: String, unique: true, sparse: true },
+    address: { type: String },
+    city: { type: String },
+    profileImage: { type: String },
   },
   {
     timestamps: true,

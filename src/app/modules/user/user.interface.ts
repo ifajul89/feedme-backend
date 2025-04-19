@@ -13,6 +13,12 @@ export interface TUser {
   password: string;
   role: 'admin' | 'user' | 'provider';
   isBlocked: boolean;
+  
+  // Optional fields
+  phone?: string;
+  address?: string;
+  city?: string;
+  profileImage?: string;
 }
 
 export type TUserRole = keyof typeof USER_ROLE;

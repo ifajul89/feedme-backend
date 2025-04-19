@@ -9,19 +9,19 @@ const router = express.Router();
 router.get('/', auth(USER_ROLE.admin), userController.getUsers);
 
 // 2. Get a Specific User
-router.get('/:id', auth(USER_ROLE.admin), userController.getSingleUsers);
+router.get('/:id', auth(USER_ROLE.admin, USER_ROLE.provider), userController.getSingleUsers);
 
 // 3. Update user information (email, name, etc. but not password)
 router.patch(
   '/update/:id',
-  auth(USER_ROLE.user, USER_ROLE.admin),
+  auth(USER_ROLE.user, USER_ROLE.admin, USER_ROLE.provider),
   userController.updateUserInfo,
 );
 
 // 4. Change password (dedicated endpoint)
 router.patch(
   '/change-password/:id',
-  auth(USER_ROLE.user, USER_ROLE.admin),
+  auth(USER_ROLE.user, USER_ROLE.admin, USER_ROLE.provider),
   userController.changePassword,
 );
 
