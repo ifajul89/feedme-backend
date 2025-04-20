@@ -18,8 +18,12 @@ const createMealMenuInDB = async (mealMenu: MealTypes['TMealMenu']) => {
     // Create meal menu in database
     console.log('Creating meal menu in database');
     const result = await MealMenuModel.create(mealMenu);
+    
+    // Populate the provider information after creation
+    const populatedResult = await MealMenuModel.findById(result._id).populate('providerId', 'name email');
+    
     console.log('Meal menu created with ID:', result._id);
-    return result;
+    return populatedResult;
   } catch (error) {
     console.error('Error in createMealMenuInDB:', error);
     throw error;
@@ -47,7 +51,7 @@ const getAllMealMenusFromDb = async (query: Record<string, unknown>) => {
     $or: searchableFields.map((field) => ({
       [field]: { $regex: searchTerm, $options: 'i' },
     })),
-  });
+  }).populate('providerId', 'name email'); // Populate provider information
 
   // Filtering
   const filterQuery = searchQuery.find(queryObj);
@@ -92,7 +96,7 @@ const getAllMealMenusFromDb = async (query: Record<string, unknown>) => {
 const getSpecificMealMenu = async (id: string) => {
   try {
     console.log('Attempting to find meal menu with ID:', id);
-    const result = await MealMenuModel.findById(id);
+    const result = await MealMenuModel.findById(id).populate('providerId', 'name email');
     
     if (!result) {
       console.log('No meal menu found with ID:', id);
@@ -130,7 +134,7 @@ const updateMealMenu = async (id: string, data: Partial<MealTypes['TMealMenu']>)
       id,
       { $set: data },
       { new: true, runValidators: true },
-    );
+    ).populate('providerId', 'name email');
 
     if (!result) {
       throw new Error(`Meal menu with id ${id} not found`);
@@ -151,7 +155,7 @@ const deleteMealMenu = async (id: string) => {
 
 // 6. Get Provider's Meal Menus
 const getProviderMealMenus = async (providerId: string) => {
-  const result = await MealMenuModel.find({ providerId });
+  const result = await MealMenuModel.find({ providerId }).populate('providerId', 'name email');
   return result;
 };
 
@@ -226,7 +230,7 @@ const searchMeals = async (searchParams: {
     .sort(sortOptions)
     .skip(skip)
     .limit(limit)
-    .populate('providerId', 'name rating'); // Populate provider details
+    .populate('providerId', 'name email'); // Populate provider details
 
   // Get total count for pagination
   const total = await MealMenuModel.countDocuments(query);
@@ -242,6 +246,100 @@ const searchMeals = async (searchParams: {
   };
 };
 
+// Add a rating to a meal
+const addMealRating = async (
+  mealId: string,
+  userId: string,
+  rating: number,
+  comment?: string
+) => {
+  try {
+    // Validate rating
+    if (rating < 1 || rating > 5) {
+      throw new Error('Rating must be between 1 and 5');
+    }
+
+    // Find the meal
+    const meal = await MealMenuModel.findById(mealId);
+    if (!meal) {
+      throw new Error(`Meal with id ${mealId} not found`);
+    }
+
+    // Check if user has already reviewed this meal
+    const existingReviewIndex = meal.ratings?.reviews?.findIndex(
+      (review: { userId: any }) => review.userId.toString() === userId
+    );
+
+    if (existingReviewIndex !== undefined && existingReviewIndex >= 0) {
+      // Update existing review
+      if (meal.ratings && meal.ratings.reviews) {
+        meal.ratings.reviews[existingReviewIndex].rating = rating;
+        if (comment) {
+          meal.ratings.reviews[existingReviewIndex].comment = comment;
+        }
+        meal.ratings.reviews[existingReviewIndex].date = new Date();
+      }
+    } else {
+      // Add new review
+      if (!meal.ratings) {
+        meal.ratings = { average: 0, count: 0, reviews: [] };
+      }
+      
+      meal.ratings.reviews?.push({
+        userId,
+        rating,
+        comment,
+        date: new Date()
+      });
+      
+      // Increment count
+      meal.ratings.count = (meal.ratings.reviews?.length || 0);
+    }
+
+    // Recalculate average rating
+    if (meal.ratings && meal.ratings.reviews) {
+      const totalRating = meal.ratings.reviews.reduce(
+        (sum: number, review: { rating: number }) => sum + review.rating,
+        0
+      );
+      meal.ratings.average = totalRating / meal.ratings.reviews.length;
+    }
+
+    // Save the updated meal
+    await meal.save();
+
+    // Return the updated meal with populated provider
+    return MealMenuModel.findById(mealId).populate('providerId', 'name email');
+  } catch (error) {
+    console.error('Error adding meal rating:', error);
+    throw error;
+  }
+};
+
+// Update meal quantity
+const updateMealQuantity = async (mealId: string, quantity: number) => {
+  try {
+    if (quantity < 0) {
+      throw new Error('Quantity cannot be negative');
+    }
+    
+    const result = await MealMenuModel.findByIdAndUpdate(
+      mealId,
+      { quantity },
+      { new: true, runValidators: true }
+    ).populate('providerId', 'name email');
+    
+    if (!result) {
+      throw new Error(`Meal with id ${mealId} not found`);
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Error updating meal quantity:', error);
+    throw error;
+  }
+};
+
 export const MealMenuServices = {
   createMealMenuInDB,
   getAllMealMenusFromDb,
@@ -250,4 +348,6 @@ export const MealMenuServices = {
   deleteMealMenu,
   getProviderMealMenus,
   searchMeals,
+  addMealRating,
+  updateMealQuantity,
 }; 

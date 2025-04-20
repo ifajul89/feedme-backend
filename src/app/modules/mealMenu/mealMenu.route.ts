@@ -1,132 +1,83 @@
 import express, { NextFunction, Request, Response } from 'express';
 import { MealMenuControllers } from './mealMenu.controller';
-import auth from '../../middleware/auth';
-import { USER_ROLE } from '../user/user.interface';
+import { MealMenuValidation } from './mealMenu.validation';
 import validateRequest from '../../middleware/validateRequest';
-import {
-  mealMenuValidationSchema,
-  mealMenuUpdateValidationSchema,
-} from './mealMenu.validation';
+import auth from '../../middleware/auth';
 import { upload } from '../../utils/sendImageCloudinary';
 import { sendImageToCloudinary } from '../../utils/sendImageCloudinary';
+import { MealMenuServices } from './mealMenu.service';
+import httpStatus from 'http-status';
+
+// Let's check if there's a proper way to import these in the existing code
+// For now, we'll use a simple solution that should work for this example
+interface ApiResponse {
+  success: boolean;
+  statusCode: number;
+  message: string;
+  data: any;
+}
+
+const sendResponse = (res: Response, data: ApiResponse) => {
+  res.status(data.statusCode).json(data);
+};
+
+enum ENUM_USER_ROLE {
+  ADMIN = 'admin',
+  USER = 'user',
+  PROVIDER = 'provider',
+}
 
 const router = express.Router();
 
-// Direct handler for meal menu creation with file upload
+// 1. Create a Meal Menu
 router.post(
   '/',
-  auth(USER_ROLE.provider),
+  auth(ENUM_USER_ROLE.PROVIDER),
   (req: Request, res: Response, next: NextFunction) => {
     console.log(
-      'Post meal menu endpoint hit with content-type:',
-      req.headers['content-type'],
+      'Incoming request for meal menu creation with body:',
+      req.body,
     );
-
-    // Use custom error handling for upload
-    const singleUpload = upload.single('file');
-    singleUpload(req, res, async (uploadErr) => {
-      if (uploadErr) {
-        console.error('Multer upload error:', uploadErr);
-        return res.status(400).json({
-          success: false,
-          message: 'File upload error',
-          error: uploadErr.message,
-        });
-      }
-
-      try {
-        console.log('File upload successful, processing data');
-        console.log('Body keys:', Object.keys(req.body));
-        console.log('File present:', !!req.file);
-
-        // Parse JSON data if it exists
-        if (req.body.data && typeof req.body.data === 'string') {
-          try {
-            req.body = JSON.parse(req.body.data);
-            console.log('Successfully parsed JSON data');
-          } catch (parseError: unknown) {
-            console.error('Error parsing JSON data:', parseError);
-            return res.status(400).json({
-              success: false,
-              message: 'Invalid JSON format in data field',
-              error:
-                parseError instanceof Error
-                  ? parseError.message
-                  : 'JSON parse error',
-            });
-          }
-        }
-
-        // Process file if present
-        if (req.file) {
-          console.log('Processing file:', req.file.fieldname);
-
-          // Create image source based on storage type
-          let imageSource;
-          if (req.file.buffer) {
-            // Memory storage (Vercel/production)
-            imageSource = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
-            console.log('Created base64 from buffer');
-          } else if (req.file.path) {
-            // Disk storage (local development)
-            imageSource = req.file.path;
-            console.log('Using file path:', req.file.path);
-          } else {
-            return res.status(400).json({
-              success: false,
-              message: 'No valid file data found',
-            });
-          }
-
-          try {
-            // Upload to Cloudinary directly
-            const imageName = req.body.name || 'untitled_meal';
-            const { secure_url } = await sendImageToCloudinary(
-              imageName,
-              imageSource,
-            );
-            console.log('Image uploaded to Cloudinary:', secure_url);
-
-            // Add the image URL to the body
-            req.body.image = secure_url;
-          } catch (cloudinaryError: unknown) {
-            console.error('Cloudinary upload error:', cloudinaryError);
-            return res.status(500).json({
-              success: false,
-              message: 'Cloudinary upload failed',
-              error:
-                cloudinaryError instanceof Error
-                  ? cloudinaryError.message
-                  : 'Unknown error',
-            });
-          }
-        }
-
-        // Validate the body data
-        const validationResult = mealMenuValidationSchema.safeParse({
-          body: req.body,
-        });
-        if (!validationResult.success) {
-          console.error('Validation error:', validationResult.error);
+    next();
+  },
+  upload.single('file'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // Parse JSON data if it exists
+      if (req.body.data && typeof req.body.data === 'string') {
+        try {
+          const parsedData = JSON.parse(req.body.data);
+          // Merge parsed data into req.body
+          req.body = { ...parsedData };
+          console.log('Successfully parsed JSON data');
+        } catch (parseError) {
+          console.error('Error parsing JSON data:', parseError);
           return res.status(400).json({
             success: false,
-            message: 'Validation failed',
-            errors: validationResult.error.errors,
+            message: 'Invalid JSON format in data field',
+            error: parseError instanceof Error ? parseError.message : 'JSON parse error',
           });
         }
-
-        // Forward to controller
-        next();
-      } catch (error: unknown) {
-        console.error('General error in meal menu creation:', error);
-        res.status(500).json({
-          success: false,
-          message: 'Server error',
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
       }
-    });
+
+      // Check if there is a file
+      if (req.file) {
+        console.log('File received:', req.file);
+        // Upload image to cloudinary
+        const imageName = req.body.name || 'untitled_meal';
+        const imagePath = req.file.path;
+        const { secure_url } = await sendImageToCloudinary(
+          imageName,
+          imagePath,
+        );
+        req.body.image = secure_url;
+      }
+      next();
+    } catch (error) {
+      next(error);
+    }
   },
+  validateRequest(MealMenuValidation.mealMenuValidationSchema),
   MealMenuControllers.createMealMenu,
 );
 
@@ -140,124 +91,112 @@ router.get('/provider/:providerId', MealMenuControllers.getProviderMealMenus);
 router.get('/:id', MealMenuControllers.getSpecificMealMenu);
 
 // 5. Delete a Meal Menu
-router.delete('/:id', auth(USER_ROLE.provider), MealMenuControllers.deleteMealMenu);
+router.delete('/:id', auth(ENUM_USER_ROLE.PROVIDER), MealMenuControllers.deleteMealMenu);
 
 // 6. Update a Meal Menu
 router.patch(
   '/:id',
-  auth(USER_ROLE.provider),
+  auth(ENUM_USER_ROLE.PROVIDER),
   (req: Request, res: Response, next: NextFunction) => {
     console.log(
-      'Update meal menu endpoint hit with content-type:',
-      req.headers['content-type'],
+      'Incoming request for meal menu update with body:',
+      req.body,
     );
-
-    // Use custom error handling for upload
-    const singleUpload = upload.single('file');
-    singleUpload(req, res, async (uploadErr) => {
-      if (uploadErr) {
-        console.error('Multer upload error:', uploadErr);
-        return res.status(400).json({
-          success: false,
-          message: 'File upload error',
-          error: uploadErr.message,
-        });
-      }
-
-      try {
-        console.log('File upload successful, processing data');
-        console.log('Body keys:', Object.keys(req.body));
-        console.log('File present:', !!req.file);
-
-        // Parse JSON data if it exists
-        if (req.body.data && typeof req.body.data === 'string') {
-          try {
-            req.body = JSON.parse(req.body.data);
-            console.log('Successfully parsed JSON data');
-          } catch (parseError: unknown) {
-            console.error('Error parsing JSON data:', parseError);
-            return res.status(400).json({
-              success: false,
-              message: 'Invalid JSON format in data field',
-              error:
-                parseError instanceof Error
-                  ? parseError.message
-                  : 'JSON parse error',
-            });
-          }
-        }
-
-        // Process file if present
-        if (req.file) {
-          console.log('Processing file:', req.file.fieldname);
-
-          // Create image source based on storage type
-          let imageSource;
-          if (req.file.buffer) {
-            // Memory storage (Vercel/production)
-            imageSource = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
-            console.log('Created base64 from buffer');
-          } else if (req.file.path) {
-            // Disk storage (local development)
-            imageSource = req.file.path;
-            console.log('Using file path:', req.file.path);
-          } else {
-            return res.status(400).json({
-              success: false,
-              message: 'No valid file data found',
-            });
-          }
-
-          try {
-            // Upload to Cloudinary directly
-            const imageName = req.body.name || `meal_${req.params.id}`;
-            const { secure_url } = await sendImageToCloudinary(
-              imageName,
-              imageSource,
-            );
-            console.log('Image uploaded to Cloudinary:', secure_url);
-
-            // Add the image URL to the body
-            req.body.image = secure_url;
-          } catch (cloudinaryError: unknown) {
-            console.error('Cloudinary upload error:', cloudinaryError);
-            return res.status(500).json({
-              success: false,
-              message: 'Cloudinary upload failed',
-              error:
-                cloudinaryError instanceof Error
-                  ? cloudinaryError.message
-                  : 'Unknown error',
-            });
-          }
-        }
-
-        // Validate the body data for update
-        const validationResult = mealMenuUpdateValidationSchema.safeParse({
-          body: req.body,
-        });
-        if (!validationResult.success) {
-          console.error('Validation error:', validationResult.error);
+    next();
+  },
+  upload.single('file'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // Parse JSON data if it exists
+      if (req.body.data && typeof req.body.data === 'string') {
+        try {
+          const parsedData = JSON.parse(req.body.data);
+          // Merge parsed data into req.body
+          req.body = { ...parsedData };
+          console.log('Successfully parsed JSON data');
+        } catch (parseError) {
+          console.error('Error parsing JSON data:', parseError);
           return res.status(400).json({
             success: false,
-            message: 'Validation failed',
-            errors: validationResult.error.errors,
+            message: 'Invalid JSON format in data field',
+            error: parseError instanceof Error ? parseError.message : 'JSON parse error',
           });
         }
-
-        // Forward to controller
-        next();
-      } catch (error: unknown) {
-        console.error('General error in meal menu update:', error);
-        res.status(500).json({
-          success: false,
-          message: 'Server error',
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
       }
-    });
+
+      // Check if there is a file
+      if (req.file) {
+        console.log('File received:', req.file);
+        // Upload image to cloudinary
+        const imageName = req.body.name || `meal_${req.params.id}`;
+        const imagePath = req.file.path;
+        const { secure_url } = await sendImageToCloudinary(
+          imageName,
+          imagePath,
+        );
+        req.body.image = secure_url;
+      }
+      next();
+    } catch (error) {
+      next(error);
+    }
   },
+  validateRequest(MealMenuValidation.mealMenuUpdateValidationSchema),
   MealMenuControllers.updateMealMenu,
+);
+
+// Rate a meal
+router.post(
+  '/:id/ratings',
+  auth(ENUM_USER_ROLE.USER, ENUM_USER_ROLE.PROVIDER),
+  validateRequest(MealMenuValidation.ratingValidationSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?._id;
+      const { rating, comment } = req.body;
+
+      const result = await MealMenuServices.addMealRating(
+        id,
+        userId,
+        rating,
+        comment
+      );
+
+      sendResponse(res, {
+        success: true,
+        statusCode: httpStatus.OK,
+        message: 'Meal rating added successfully',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// Update meal quantity
+router.patch(
+  '/:id/quantity',
+  auth(ENUM_USER_ROLE.PROVIDER),
+  validateRequest(MealMenuValidation.quantityValidationSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const { quantity } = req.body;
+
+      const result = await MealMenuServices.updateMealQuantity(id, quantity);
+
+      sendResponse(res, {
+        success: true,
+        statusCode: httpStatus.OK,
+        message: 'Meal quantity updated successfully',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 );
 
 export const MealMenuRoutes = router; 

@@ -62,4 +62,26 @@ export const mealMenuUpdateValidationSchema = z.object({
     .refine((data) => Object.keys(data).length > 0, {
       message: 'At least one field must be provided for update',
     }),
-}); 
+});
+
+// Validation for rating a meal
+const ratingValidationSchema = z.object({
+  body: z.object({
+    rating: z.number().min(1).max(5),
+    comment: z.string().optional(),
+  }),
+});
+
+// Validation for updating meal quantity
+const quantityValidationSchema = z.object({
+  body: z.object({
+    quantity: z.number().min(0),
+  }),
+});
+
+export const MealMenuValidation = {
+  mealMenuValidationSchema,
+  mealMenuUpdateValidationSchema,
+  ratingValidationSchema,
+  quantityValidationSchema,
+}; 

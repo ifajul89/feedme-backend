@@ -21,7 +21,7 @@ app.use(cookieParser());
 // Configure CORS
 app.use(
   cors({
-    origin: ['https://velocity-car-shop.vercel.app', 'http://localhost:5173'], // Your frontend URL
+    origin: ['http://localhost:3000'], // Your frontend URL
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
