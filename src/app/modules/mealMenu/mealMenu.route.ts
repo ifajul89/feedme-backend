@@ -1,4 +1,4 @@
-import express, { NextFunction, Request, Response } from 'express';
+import express, { NextFunction, Request, Response, RequestHandler } from 'express';
 import { MealMenuControllers } from './mealMenu.controller';
 import { MealMenuValidation } from './mealMenu.validation';
 import validateRequest from '../../middleware/validateRequest';
@@ -41,7 +41,7 @@ router.post(
     next();
   },
   upload.single('file'),
-  async (req: Request, res: Response, next: NextFunction) => {
+  ((req, res, next) => {
     try {
       // Parse JSON data if it exists
       if (req.body.data && typeof req.body.data === 'string') {
@@ -52,11 +52,12 @@ router.post(
           console.log('Successfully parsed JSON data');
         } catch (parseError) {
           console.error('Error parsing JSON data:', parseError);
-          return res.status(400).json({
+          res.status(400).json({
             success: false,
             message: 'Invalid JSON format in data field',
             error: parseError instanceof Error ? parseError.message : 'JSON parse error',
           });
+          return;
         }
       }
 
@@ -66,17 +67,21 @@ router.post(
         // Upload image to cloudinary
         const imageName = req.body.name || 'untitled_meal';
         const imagePath = req.file.path;
-        const { secure_url } = await sendImageToCloudinary(
-          imageName,
-          imagePath,
-        );
-        req.body.image = secure_url;
+        sendImageToCloudinary(imageName, imagePath)
+          .then(({ secure_url }) => {
+            req.body.image = secure_url;
+            next();
+          })
+          .catch(error => {
+            next(error);
+          });
+      } else {
+        next();
       }
-      next();
     } catch (error) {
       next(error);
     }
-  },
+  }) as RequestHandler,
   validateRequest(MealMenuValidation.mealMenuValidationSchema),
   MealMenuControllers.createMealMenu,
 );
@@ -112,7 +117,7 @@ router.patch(
     next();
   },
   upload.single('file'),
-  async (req: Request, res: Response, next: NextFunction) => {
+  ((req, res, next) => {
     try {
       // Parse JSON data if it exists
       if (req.body.data && typeof req.body.data === 'string') {
@@ -123,11 +128,12 @@ router.patch(
           console.log('Successfully parsed JSON data');
         } catch (parseError) {
           console.error('Error parsing JSON data:', parseError);
-          return res.status(400).json({
+          res.status(400).json({
             success: false,
             message: 'Invalid JSON format in data field',
             error: parseError instanceof Error ? parseError.message : 'JSON parse error',
           });
+          return;
         }
       }
 
@@ -137,17 +143,21 @@ router.patch(
         // Upload image to cloudinary
         const imageName = req.body.name || `meal_${req.params.id}`;
         const imagePath = req.file.path;
-        const { secure_url } = await sendImageToCloudinary(
-          imageName,
-          imagePath,
-        );
-        req.body.image = secure_url;
+        sendImageToCloudinary(imageName, imagePath)
+          .then(({ secure_url }) => {
+            req.body.image = secure_url;
+            next();
+          })
+          .catch(error => {
+            next(error);
+          });
+      } else {
+        next();
       }
-      next();
     } catch (error) {
       next(error);
     }
-  },
+  }) as RequestHandler,
   validateRequest(MealMenuValidation.mealMenuUpdateValidationSchema),
   MealMenuControllers.updateMealMenu,
 );
