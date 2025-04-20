@@ -1,8 +1,8 @@
 import { Schema, model, models } from 'mongoose';
-import { TMealMenu } from './mealMenu.interface';
+import { MealTypes } from './mealMenu.interface';
 
 // Create the Mongoose schema
-const mealMenuSchema = new Schema<TMealMenu>({
+const mealMenuSchema = new Schema<MealTypes['TMealMenu']>({
   name: { type: String, required: true },
   providerId: { type: String, required: true },
   ingredients: [{ type: String, required: true }],
@@ -23,7 +23,16 @@ const mealMenuSchema = new Schema<TMealMenu>({
     carbs: { type: Number },
     fat: { type: Number },
   },
+  customizationOptions: {
+    removeIngredients: [{ type: String }],
+    addOns: [{
+      name: { type: String },
+      price: { type: Number }
+    }],
+    spiceLevel: [{ type: String }],
+    noteToChef: { type: Boolean }
+  }
 });
 
 // Create and export the model, checking if it already exists
-export const MealMenuModel = models.MealMenu || model<TMealMenu>('MealMenu', mealMenuSchema); 
+export const MealMenuModel = models.MealMenu || model<MealTypes['TMealMenu']>('MealMenu', mealMenuSchema); 

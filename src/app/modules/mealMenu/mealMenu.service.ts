@@ -1,9 +1,9 @@
 import { sendImageToCloudinary } from '../../utils/sendImageCloudinary';
-import { TMealMenu } from './mealMenu.interface';
+import { MealTypes } from './mealMenu.interface';
 import { MealMenuModel } from './mealMenu.model';
 
 // 1. Create a Meal Menu
-const createMealMenuInDB = async (mealMenu: TMealMenu) => {
+const createMealMenuInDB = async (mealMenu: MealTypes['TMealMenu']) => {
   try {
     console.log('Creating meal menu in DB with:', {
       name: mealMenu?.name,
@@ -108,7 +108,7 @@ const getSpecificMealMenu = async (id: string) => {
 };
 
 // 4. Update a Meal Menu
-const updateMealMenu = async (id: string, data: Partial<TMealMenu>) => {
+const updateMealMenu = async (id: string, data: Partial<MealTypes['TMealMenu']>) => {
   try {
     // If a file path or base64 data is provided, upload to cloudinary
     if (
@@ -155,6 +155,93 @@ const getProviderMealMenus = async (providerId: string) => {
   return result;
 };
 
+// Search Meals with Advanced Filters
+const searchMeals = async (searchParams: {
+  searchTerm?: string;
+  category?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  providerId?: string;
+  isAvailable?: boolean;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
+}) => {
+  const {
+    searchTerm,
+    category,
+    minPrice,
+    maxPrice,
+    providerId,
+    isAvailable,
+    sortBy = 'price',
+    sortOrder = 'asc',
+    page = 1,
+    limit = 12,
+  } = searchParams;
+
+  // Build the query
+  const query: {
+    $or?: Array<{ [key: string]: { $regex: string; $options: string } }>;
+    category?: string;
+    price?: { $gte?: number; $lte?: number };
+    providerId?: string;
+    isAvailable?: boolean;
+  } = {};
+
+  // Only apply filters if they are provided
+  if (searchTerm) {
+    query.$or = [
+      { name: { $regex: searchTerm, $options: 'i' } },
+      { description: { $regex: searchTerm, $options: 'i' } },
+    ];
+  }
+
+  if (category) {
+    query.category = category;
+  }
+
+  if (minPrice || maxPrice) {
+    query.price = {};
+    if (minPrice) query.price.$gte = minPrice;
+    if (maxPrice) query.price.$lte = maxPrice;
+  }
+
+  if (providerId) {
+    query.providerId = providerId;
+  }
+
+  if (typeof isAvailable === 'boolean') {
+    query.isAvailable = isAvailable;
+  }
+
+  // Build sort object
+  const sortOptions: Record<string, 1 | -1> = {};
+  sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+  // Execute query with pagination
+  const skip = (page - 1) * limit;
+  const meals = await MealMenuModel.find(query)
+    .sort(sortOptions)
+    .skip(skip)
+    .limit(limit)
+    .populate('providerId', 'name rating'); // Populate provider details
+
+  // Get total count for pagination
+  const total = await MealMenuModel.countDocuments(query);
+
+  return {
+    data: meals,
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+};
+
 export const MealMenuServices = {
   createMealMenuInDB,
   getAllMealMenusFromDb,
@@ -162,4 +249,5 @@ export const MealMenuServices = {
   updateMealMenu,
   deleteMealMenu,
   getProviderMealMenus,
+  searchMeals,
 }; 

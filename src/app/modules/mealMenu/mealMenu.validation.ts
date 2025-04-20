@@ -18,6 +18,15 @@ export const mealMenuValidationSchema = z.object({
       carbs: z.number().min(0).optional(),
       fat: z.number().min(0).optional(),
     }).optional(),
+    customizationOptions: z.object({
+      removeIngredients: z.array(z.string()).optional(),
+      addOns: z.array(z.object({
+        name: z.string(),
+        price: z.number().min(0)
+      })).optional(),
+      spiceLevel: z.array(z.string()).optional(),
+      noteToChef: z.boolean().optional()
+    }).optional(),
   }),
 });
 
@@ -39,6 +48,15 @@ export const mealMenuUpdateValidationSchema = z.object({
         protein: z.number().min(0).optional(),
         carbs: z.number().min(0).optional(),
         fat: z.number().min(0).optional(),
+      }).optional(),
+      customizationOptions: z.object({
+        removeIngredients: z.array(z.string()).optional(),
+        addOns: z.array(z.object({
+          name: z.string(),
+          price: z.number().min(0)
+        })).optional(),
+        spiceLevel: z.array(z.string()).optional(),
+        noteToChef: z.boolean().optional()
       }).optional(),
     })
     .refine((data) => Object.keys(data).length > 0, {
