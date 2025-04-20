@@ -20,6 +20,9 @@ const createMealMenu = catchAsync(
       }
 
       // Set the providerId from the authenticated user
+      if (!req.user) {
+        throw new Error('Unauthorized: User not authenticated');
+      }
       req.body.providerId = req.user._id;
 
       // Create meal menu record
@@ -130,6 +133,34 @@ const getProviderMealMenus = catchAsync(
   },
 );
 
+// 7. Get Provider's Meal Menus by Email
+const getProviderMenusByEmail = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const email = req.query.email as string;
+    
+    console.log(`Attempting to fetch menus for provider with email: ${email}`);
+    
+    if (!email) {
+      sendResponse(res, {
+        statusCode: httpStatus.BAD_REQUEST,
+        status: false,
+        message: 'Provider email is required',
+        data: null,
+      });
+      return;
+    }
+    
+    const result = await MealMenuServices.getProviderMenusByEmail(email);
+    
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      status: true,
+      message: 'Provider meal menus are retrieved successfully',
+      data: result,
+    });
+  },
+);
+
 export const MealMenuControllers = {
   createMealMenu,
   getMealMenus,
@@ -137,4 +168,5 @@ export const MealMenuControllers = {
   updateMealMenu,
   deleteMealMenu,
   getProviderMealMenus,
+  getProviderMenusByEmail,
 }; 

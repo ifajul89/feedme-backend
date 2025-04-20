@@ -1,6 +1,7 @@
 import { sendImageToCloudinary } from '../../utils/sendImageCloudinary';
 import { MealTypes } from './mealMenu.interface';
 import { MealMenuModel } from './mealMenu.model';
+import mongoose from 'mongoose';
 
 // 1. Create a Meal Menu
 const createMealMenuInDB = async (mealMenu: MealTypes['TMealMenu']) => {
@@ -340,6 +341,29 @@ const updateMealQuantity = async (mealId: string, quantity: number) => {
   }
 };
 
+// New function to get provider menus by email
+const getProviderMenusByEmail = async (email: string) => {
+  // First, find the provider by email
+  const UserModel = mongoose.model('User');
+  const provider = await UserModel.findOne({ email });
+  
+  if (!provider) {
+    throw new Error(`Provider with email ${email} not found`);
+  }
+  
+  console.log('Found provider:', provider._id);
+  
+  // Then find all menus created by this provider
+  // Convert the ID to string for proper comparison
+  const result = await MealMenuModel.find({ 
+    providerId: provider._id 
+  }).populate('providerId', 'name email');
+  
+  console.log(`Found ${result.length} menus for provider with email: ${email}`);
+  
+  return result;
+};
+
 export const MealMenuServices = {
   createMealMenuInDB,
   getAllMealMenusFromDb,
@@ -350,4 +374,5 @@ export const MealMenuServices = {
   searchMeals,
   addMealRating,
   updateMealQuantity,
+  getProviderMenusByEmail,
 }; 

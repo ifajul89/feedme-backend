@@ -14,7 +14,7 @@ interface ApiResponse {
   success: boolean;
   statusCode: number;
   message: string;
-  data: any;
+  data: Record<string, unknown>;
 }
 
 const sendResponse = (res: Response, data: ApiResponse) => {
@@ -84,7 +84,14 @@ router.post(
 // 2. Get All Meal Menus
 router.get('/', MealMenuControllers.getMealMenus);
 
-// 4. Get Provider's Meal Menus
+// 7. Get Provider Menus by Email
+router.get(
+  '/provider-menus',
+  auth(ENUM_USER_ROLE.PROVIDER),
+  MealMenuControllers.getProviderMenusByEmail
+);
+
+// 4. Get Provider's Meal Menus by ID
 router.get('/provider/:providerId', MealMenuControllers.getProviderMealMenus);
 
 // 3. Get a Specific Meal Menu
