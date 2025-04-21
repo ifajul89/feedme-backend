@@ -5,6 +5,7 @@ import authRoute from '../modules/Auth/auth.route';
 import { userRoutes } from '../modules/user/user.route';
 import { upload } from '../utils/sendImageCloudinary';
 import { sendImageToCloudinary } from '../utils/sendImageCloudinary';
+import { cartRoutes } from '../modules/cart';
 
 const router = Router();
 
@@ -119,6 +120,10 @@ const modelRouters = [
   {
     path: '/user',
     route: userRoutes,
+  },
+  {
+    path: '/cart',
+    route: cartRoutes,
   },
 ];
 
