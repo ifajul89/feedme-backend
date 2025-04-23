@@ -5,9 +5,9 @@ import AppError from '../../errors/appError';
 import { OrderModel } from './order.model';
 import { orderUtils } from './order.utils';
 import { CartServices } from '../cart/cart.service';
-import mongoose from 'mongoose';
+// import mongoose from 'mongoose';
 import { MealMenuModel } from '../mealMenu/mealMenu.model';
-import { MealTypes } from '../mealMenu/mealMenu.interface';
+// import { MealTypes } from '../mealMenu/mealMenu.interface';
 
 // const createOrder = async (user: TUser, orderData: any, client_ip: string) => {
 
@@ -82,8 +82,7 @@ const createOrder = async (
   user: any,
   payload: {
     products: { product: string; quantity: number; price?: number }[];
-    customerFirstName: string;
-    customerLastName: string;
+    name: string;
     email: string;
     phone: string;
     address: string;
@@ -158,8 +157,7 @@ const createOrder = async (
 
   const order = await OrderModel.create({
     user,
-    customerFirstName: payload.customerFirstName,
-    customerLastName: payload.customerLastName,
+    name: payload.name,
     email: payload.email,
     phone: payload.phone,
     address: payload.address,
@@ -188,7 +186,7 @@ const createOrder = async (
     amount: totalPrice,
     order_id: order._id,
     currency: 'BDT',
-    customer_name: `${payload.customerFirstName} ${payload.customerLastName}`,
+    customer_name: payload.name,
     customer_address: payload.address,
     customer_email: payload.email,
     customer_phone: payload.phone,
@@ -510,8 +508,7 @@ const getProviderOrders = async (providerId: string) => {
 const createOrderFromCart = async (
   user: any,
   payload: {
-    customerFirstName: string;
-    customerLastName: string;
+    name: string;
     email: string;
     phone: string;
     address: string;
@@ -592,8 +589,7 @@ const createOrderFromCart = async (
 
   const order = await OrderModel.create({
     user: user._id,
-    customerFirstName: payload.customerFirstName,
-    customerLastName: payload.customerLastName,
+    name: payload.name,
     email: payload.email,
     phone: payload.phone,
     address: payload.address,
@@ -618,7 +614,7 @@ const createOrderFromCart = async (
     amount: totalPrice,
     order_id: order._id,
     currency: 'BDT',
-    customer_name: `${payload.customerFirstName} ${payload.customerLastName}`,
+    customer_name: payload.name,
     customer_address: payload.address,
     customer_email: payload.email,
     customer_phone: payload.phone,

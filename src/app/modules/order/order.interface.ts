@@ -2,8 +2,7 @@ import { Types } from 'mongoose';
 
 export interface TOrder {
   user: Types.ObjectId;
-  customerFirstName: string;
-  customerLastName: string;
+  name: string;
   email: string;
   phone: string;
   address: string;

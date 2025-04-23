@@ -8,11 +8,7 @@ const OrderSchema = new Schema<TOrder>(
       ref: 'User',
       required: true,
     },
-    customerFirstName: {
-      type: String,
-      required: true,
-    },
-    customerLastName: {
+    name: {
       type: String,
       required: true,
     },

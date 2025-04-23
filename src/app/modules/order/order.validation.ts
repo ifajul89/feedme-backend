@@ -10,8 +10,7 @@ const createOrderZodSchema = z.object({
         price: z.number().optional(),
       })
     ),
-    customerFirstName: z.string(),
-    customerLastName: z.string(),
+    name: z.string(),
     email: z.string().email(),
     phone: z.string(),
     address: z.string(),
@@ -23,8 +22,7 @@ const createOrderZodSchema = z.object({
 // Create order from cart validation schema
 const createOrderFromCartZodSchema = z.object({
   body: z.object({
-    customerFirstName: z.string(),
-    customerLastName: z.string(),
+    name: z.string(),
     email: z.string().email(),
     phone: z.string(),
     address: z.string().optional(),
