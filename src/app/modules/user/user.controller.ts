@@ -115,34 +115,33 @@ const changePassword = catchAsync(
     const userId = req.params.id;
     const { currentPassword, newPassword } = req.body;
 
-    console.log(`Change password attempt for userId: ${userId}`);
+    if (!currentPassword || !newPassword) {
+      return sendResponse(res, {
+        statusCode: httpStatus.BAD_REQUEST,
+        status: false,
+        message: 'Both current password and new password are required',
+        data: null,
+      });
+    }
 
     // Ensure user can only change their own password
     const user = req.user;
-
-    console.log(
-      'User from request:',
-      user ? `ID: ${user._id}, Email: ${user.email}` : 'No user in request',
-    );
 
     if (!user) {
       return sendResponse(res, {
         statusCode: httpStatus.UNAUTHORIZED,
         status: false,
-        message: 'User not found or not authenticated',
+        message: 'Authentication required. Please login and try again',
         data: null,
       });
     }
 
     // Compare as strings to ensure proper comparison
-    console.log(
-      `Comparing requestedId: ${userId} with userTokenId: ${user._id.toString()}`,
-    );
     if (userId !== user._id.toString()) {
       return sendResponse(res, {
         statusCode: httpStatus.FORBIDDEN,
         status: false,
-        message: `You are not authorized to change this password. Your user ID is ${user._id.toString()}. Please use this ID in the URL instead of ${userId}`,
+        message: `You can only change your own password. Please use your user ID in the URL: ${user._id.toString()}`,
         data: {
           yourUserId: user._id.toString(),
           correctUrl: `/api/user/change-password/${user._id.toString()}`,
@@ -150,42 +149,53 @@ const changePassword = catchAsync(
       });
     }
 
-    // Verify the current password is correct
-    const userDoc = await userService.getSingleUser(userId);
+    try {
+      // Verify the current password is correct
+      const userDoc = await userService.getSingleUser(userId);
 
-    if (!userDoc) {
+      if (!userDoc) {
+        return sendResponse(res, {
+          statusCode: httpStatus.NOT_FOUND,
+          status: false,
+          message: 'User not found',
+          data: null,
+        });
+      }
+
+      // Check if the current password is correct
+      const isPasswordValid = await bcrypt.compare(
+        currentPassword,
+        userDoc.password,
+      );
+
+      if (!isPasswordValid) {
+        return sendResponse(res, {
+          statusCode: httpStatus.UNAUTHORIZED,
+          status: false,
+          message: 'Current password is incorrect',
+          data: null,
+        });
+      }
+
+      // Update the password
+      const result = await userService.changePassword(userId, newPassword);
+
+      sendResponse(res, {
+        statusCode: httpStatus.OK,
+        status: true,
+        message: 'Password changed successfully',
+        data: { success: true },
+      });
+    } catch (error) {
+      console.error('Password change error:', error);
+      
       return sendResponse(res, {
-        statusCode: httpStatus.NOT_FOUND,
+        statusCode: httpStatus.INTERNAL_SERVER_ERROR,
         status: false,
-        message: 'User not found',
+        message: 'Failed to change password. Please try again later',
         data: null,
       });
     }
-
-    // Check if the current password is correct
-    const isPasswordValid = await bcrypt.compare(
-      currentPassword,
-      userDoc.password,
-    );
-
-    if (!isPasswordValid) {
-      return sendResponse(res, {
-        statusCode: httpStatus.UNAUTHORIZED,
-        status: false,
-        message: 'Current password is incorrect',
-        data: null,
-      });
-    }
-
-    // Update the password
-    const result = await userService.changePassword(userId, newPassword);
-
-    sendResponse(res, {
-      statusCode: httpStatus.OK,
-      status: true,
-      message: 'Password changed successfully',
-      data: { success: true },
-    });
   },
 );
 

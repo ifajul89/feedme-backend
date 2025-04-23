@@ -45,14 +45,16 @@ const addToCart = catchAsync(
         deliveryDate,
         deliverySlot,
         deliveryAddress,
-        // Customization options
-        spiceLevel,
-        removedIngredients = [],
-        addOns = [],
+        customization = {}, // Get the entire customization object
       } = req.body;
 
-      // Fix for typo in specialInstructions field
-      const specialInstructions = req.body.specialInstructions || req.body.specialInstructionis || '';
+      // Extract customization fields with defaults if not provided
+      const {
+        spiceLevel = null,
+        removedIngredients = [],
+        addOns = [],
+        specialInstructions = ''
+      } = customization;
 
       // Validate required fields
       if (!mealId || !Types.ObjectId.isValid(mealId)) {
@@ -73,16 +75,32 @@ const addToCart = catchAsync(
         });
       }
       
-      // Always fetch the provider email from the database
-      let providerEmail: string | undefined = undefined;
-      try {
-        const provider = await UserModel.findById(providerId);
-        if (provider && provider.email) {
-          providerEmail = provider.email;
+      // Always fetch the provider email from the database or use the one from request
+      let providerEmail: string | undefined = req.body.providerEmail;
+      if (!providerEmail) {
+        try {
+          const provider = await UserModel.findById(providerId);
+          if (provider && provider.email) {
+            providerEmail = provider.email;
+          }
+        } catch (error) {
+          console.error('Error fetching provider email:', error);
+          return sendResponse(res, {
+            statusCode: httpStatus.BAD_REQUEST,
+            status: false,
+            message: 'Provider email is required',
+            data: null,
+          });
         }
-      } catch (error) {
-        console.error('Error fetching provider email:', error);
-        // Continue without provider email if there's an error
+      }
+
+      if (!providerEmail) {
+        return sendResponse(res, {
+          statusCode: httpStatus.BAD_REQUEST,
+          status: false,
+          message: 'Provider email is required',
+          data: null,
+        });
       }
 
       // Always get the customer email from the authenticated user
@@ -99,27 +117,27 @@ const addToCart = catchAsync(
       // Format the cart data
       const cartData = {
         customerEmail,
+        deliveryAddress,
         items: [{
-          mealId,
+          mealId: new Types.ObjectId(mealId),
           mealName,
-          providerId,
+          providerId: new Types.ObjectId(providerId),
           providerName,
           providerEmail,
-          price,
           quantity,
-          deliveryDate,
+          price,
+          deliveryDate: new Date(deliveryDate),
           deliverySlot,
           customization: {
             spiceLevel,
             removedIngredients,
-            addOns: addOns.map((addon: { name: string, price: number }) => ({
+            addOns: addOns.map((addon: { name: string; price: number }) => ({
               name: addon.name,
               price: addon.price
             })),
             specialInstructions
           }
-        }],
-        deliveryAddress
+        }]
       };
 
       const result = await CartServices.addToCart(userId, cartData);

@@ -15,7 +15,7 @@ const addToCartValidationSchema = z.object({
     deliverySlot: z.string(),
     deliveryAddress: z.string(),
     // Customization options
-    spiceLevel: z.enum(['Mild', 'Medium', 'Hot']).optional(),
+    spiceLevel: z.string().optional(),
     removedIngredients: z.array(z.string()).optional().default([]),
     addOns: z.array(
       z.object({
@@ -33,7 +33,7 @@ const addToCartValidationSchema = z.object({
 const updateCartItemValidationSchema = z.object({
   body: z.object({
     quantity: z.number().min(1).optional(),
-    spiceLevel: z.enum(['Mild', 'Medium', 'Hot']).optional(),
+    spiceLevel: z.string().optional(),
     removedIngredients: z.array(z.string()).optional(),
     addOns: z.array(
       z.object({

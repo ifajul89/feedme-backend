@@ -71,6 +71,8 @@ const login = async (payload: ILogInUser) => {
     email: user?.email,
     role: user?.role,
     id: user?._id,
+    address: user?.address,
+    phone: user?.phone
   };
   // console.log(user);
 

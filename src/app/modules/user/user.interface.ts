@@ -1,22 +1,19 @@
 export const USER_ROLE = {
   admin: 'admin',
-  user: 'user',
-  provider: 'provider'
+  provider: 'provider',
+  customer: 'customer'
 } as const;
 
 export interface TUser {
   name: string;
   email: string;
-  // phone: string;
-  // address: string;
-  // city: string;
+  phone: string;
+  address: string;
   password: string;
-  role: 'admin' | 'user' | 'provider';
+  role: 'admin' | 'provider' | 'customer';
   isBlocked: boolean;
   
   // Optional fields
-  phone?: string;
-  address?: string;
   city?: string;
   profileImage?: string;
 }

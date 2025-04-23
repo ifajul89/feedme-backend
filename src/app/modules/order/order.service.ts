@@ -4,6 +4,10 @@ import httpStatus from 'http-status';
 import AppError from '../../errors/appError';
 import { OrderModel } from './order.model';
 import { orderUtils } from './order.utils';
+import { CartServices } from '../cart/cart.service';
+import mongoose from 'mongoose';
+import { MealMenuModel } from '../mealMenu/mealMenu.model';
+import { MealTypes } from '../mealMenu/mealMenu.interface';
 
 // const createOrder = async (user: TUser, orderData: any, client_ip: string) => {
 
@@ -99,7 +103,7 @@ const createOrder = async (
   let subtotal = 0;
   const productDetails = await Promise.all(
     products.map(async (item) => {
-      const product = await CarModel.findById(item.product);
+      const product = await MealMenuModel.findById(item.product);
       if (!product) {
         throw new AppError(
           httpStatus.NOT_FOUND,
@@ -171,11 +175,11 @@ const createOrder = async (
     // estimatedDeliveryDate // Add estimated delivery date
   });
 
-  // Double-check the created order has products
-  if (!order.products || order.products.length === 0) {
+  // Double-check the created order
+  if (!order) {
     throw new AppError(
       httpStatus.INTERNAL_SERVER_ERROR,
-      'Failed to save products to the order',
+      'Failed to create order',
     );
   }
 
@@ -305,8 +309,8 @@ const getDetails = async () => {
 // Add these tracking-related services at the end of the file
 const getOrderByTrackingNumber = async (trackingNumber: string) => {
   const order = await OrderModel.findOne({ trackingNumber }).populate({
-    path: 'products.product',
-    model: 'Car',
+    path: 'meals.mealId',
+    select: 'name providerId ingredients portionSize price image category description preparationTime isAvailable nutritionalInfo'
   });
 
   if (!order) {
@@ -320,8 +324,8 @@ const getOrderByTrackingNumber = async (trackingNumber: string) => {
 
 const getOrderById = async (orderId: string) => {
   const order = await OrderModel.findById(orderId).populate({
-    path: 'products.product',
-    model: 'Car',
+    path: 'meals.mealId',
+    select: 'name providerId ingredients portionSize price image category description preparationTime isAvailable nutritionalInfo'
   });
 
   if (!order) {
@@ -335,7 +339,6 @@ const updateOrderTracking = async (
   trackingData: {
     stage: 'placed' | 'approved' | 'processed' | 'shipped' | 'delivered';
     message: string;
-    estimatedDeliveryDate?: string | Date;
   },
 ) => {
   const order = await OrderModel.findById(orderId);
@@ -380,19 +383,6 @@ const updateOrderTracking = async (
     order.status = 'Completed';
   }
 
-  // Check if order status is Cancelled
-  if (order.status === 'Cancelled') {
-    // If cancelled, set estimated delivery date to undefined
-    order.estimatedDeliveryDate = undefined;
-  } else {
-    // Otherwise, set estimated delivery date if provided
-    if (trackingData.estimatedDeliveryDate) {
-      order.estimatedDeliveryDate = new Date(
-        trackingData.estimatedDeliveryDate,
-      );
-    }
-  }
-
   await order.save();
   return order;
 };
@@ -435,8 +425,8 @@ const setEstimatedDelivery = async (
 const getUserOrders = async (userId: string) => {
   const orders = await OrderModel.find({ user: userId })
     .populate({
-      path: 'products.product',
-      model: 'Car',
+      path: 'meals.mealId',
+      select: 'name providerId ingredients portionSize price image category description preparationTime isAvailable nutritionalInfo'
     })
     .select('-trackingStages') // Exclude trackingStages from the response
     .sort({ createdAt: -1 });
@@ -456,9 +446,234 @@ const deleteOrder = async (orderId: string) => {
   return { message: 'Order deleted successfully' };
 };
 
+// Get orders for a specific provider
+const getProviderOrders = async (providerId: string) => {
+  if (!providerId) {
+    console.log('No provider ID specified, returning empty result');
+    return [];
+  }
+  
+  console.log('Getting orders for provider:', providerId);
+  
+  // First check - directly query MealMenu to verify provider exists
+  try {
+    const providerMeals = await MealMenuModel.find({ providerId }).limit(1);
+    console.log(`Provider meals check: ${providerMeals.length > 0 ? 'Found meals' : 'No meals found'}`);
+    
+    if (providerMeals.length > 0) {
+      // Log a sample meal to verify structure
+      console.log('Sample meal structure:', JSON.stringify({
+        id: providerMeals[0]._id,
+        name: providerMeals[0].name,
+        providerId: providerMeals[0].providerId
+      }, null, 2));
+    }
+  } catch (error) {
+    console.error('Error checking provider meals:', error);
+  }
+  
+  try {
+    // DIRECT APPROACH: Find all meals from this provider first
+    const providerMealIds = await MealMenuModel.find({ providerId })
+      .select('_id')
+      .lean();
+    
+    if (!providerMealIds.length) {
+      console.log('No meals found for this provider');
+      return [];
+    }
+    
+    // Extract just the ID values into an array
+    const mealIdList = providerMealIds.map(meal => meal._id);
+    console.log(`Found ${mealIdList.length} meal IDs for this provider`);
+    
+    // Now find orders that contain any of these meals
+    const orders = await OrderModel.find({
+      'meals.mealId': { $in: mealIdList }
+    })
+    .populate({
+      path: 'meals.mealId',
+      select: 'name providerId ingredients portionSize price image category description preparationTime isAvailable nutritionalInfo'
+    })
+    .select('-trackingStages')
+    .sort({ createdAt: -1 });
+    
+    console.log(`Found ${orders.length} orders containing meals from provider ${providerId}`);
+    
+    return orders;
+  } catch (error) {
+    console.error('Error finding provider orders:', error);
+    return [];
+  }
+};
+
+const createOrderFromCart = async (
+  user: any,
+  payload: {
+    customerFirstName: string;
+    customerLastName: string;
+    email: string;
+    phone: string;
+    address: string;
+    city: string;
+    zipCode: string;
+    deliveryDate: string;
+    deliverySlot: string;
+  },
+  client_ip: string,
+) => {
+  // Get user's cart
+  const cart = await CartServices.getCart(user._id);
+  if (!cart || !cart.items || cart.items.length === 0) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Cart is empty');
+  }
+
+  // Set fixed shipping cost
+  const shippingCost = 2500;
+
+  let subtotal = 0;
+  const mealDetails = await Promise.all(
+    cart.items.map(async (item) => {
+      const meal = await MealMenuModel.findById(item.mealId);
+      if (!meal) {
+        throw new AppError(
+          httpStatus.NOT_FOUND,
+          `Meal with ID ${item.mealId} not found`,
+        );
+      }
+
+      // Calculate item subtotal including add-ons
+      let itemPrice = item.price;
+      if (item.customization?.addOns && item.customization.addOns.length > 0) {
+        const addOnsTotal = item.customization.addOns.reduce(
+          (sum, addon) => sum + addon.price,
+          0
+        );
+        itemPrice += addOnsTotal;
+      }
+      const itemSubtotal = itemPrice * item.quantity;
+      subtotal += itemSubtotal;
+
+      // Create customization object with default empty arrays
+      const customization = {
+        removedIngredients: item.customization?.removedIngredients || [],
+        addOns: item.customization?.addOns || [],
+        spiceLevel: item.customization?.spiceLevel || undefined,
+        specialInstructions: item.customization?.specialInstructions || undefined
+      };
+
+      return {
+        mealId: item.mealId,
+        quantity: item.quantity,
+        price: itemPrice,
+        subtotal: itemSubtotal,
+        customization
+      };
+    }),
+  );
+
+  // Calculate tax (5% of subtotal)
+  const taxRate = 0.05;
+  const tax = subtotal * taxRate;
+
+  // Calculate total price (subtotal + tax + shipping)
+  const totalPrice = Math.round(subtotal + tax + shippingCost);
+
+  // Generate tracking number and initial tracking update
+  const timestamp = Date.now().toString(36);
+  const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
+  const trackingNumber = `TRK-${timestamp}-${randomStr}`;
+
+  const initialTrackingUpdate = {
+    stage: 'placed',
+    timestamp: new Date(),
+    message: 'Order has been placed successfully',
+  };
+
+  const order = await OrderModel.create({
+    user: user._id,
+    customerFirstName: payload.customerFirstName,
+    customerLastName: payload.customerLastName,
+    email: payload.email,
+    phone: payload.phone,
+    address: payload.address,
+    city: payload.city,
+    zipCode: payload.zipCode,
+    deliveryDate: new Date(payload.deliveryDate),
+    deliverySlot: payload.deliverySlot,
+    meals: mealDetails,
+    subtotal,
+    tax,
+    shipping: shippingCost,
+    totalPrice,
+    trackingNumber,
+    trackingUpdates: [initialTrackingUpdate],
+  });
+
+  // Clear the cart after successful order creation
+  await CartServices.clearCart(user._id);
+
+  // payment integration
+  const shurjopayPayload = {
+    amount: totalPrice,
+    order_id: order._id,
+    currency: 'BDT',
+    customer_name: `${payload.customerFirstName} ${payload.customerLastName}`,
+    customer_address: payload.address,
+    customer_email: payload.email,
+    customer_phone: payload.phone,
+    customer_city: payload.city,
+    client_ip,
+  };
+
+  const payment = await orderUtils.makePaymentAsync(shurjopayPayload);
+
+  if (payment?.transactionStatus) {
+    await order.updateOne({
+      transaction: {
+        id: payment.sp_order_id,
+        transactionStatus: payment.transactionStatus,
+      },
+    });
+  }
+
+  // Populate the meal details
+  const populatedOrder = await OrderModel.findById(order._id)
+    .populate({
+      path: 'meals.mealId',
+      select: 'name providerId ingredients portionSize price image category description preparationTime isAvailable nutritionalInfo'
+    });
+
+  return {
+    status: true,
+    statusCode: 201,
+    message: 'Order created from cart successfully',
+    data: {
+      checkoutUrl: payment.checkout_url,
+      order: {
+        orderId: order._id,
+        trackingNumber: order.trackingNumber,
+        totalPrice: order.totalPrice,
+        status: order.status,
+        meals: populatedOrder?.meals.map(meal => ({
+          customization: meal.customization,
+          mealId: meal.mealId,
+          quantity: meal.quantity,
+          price: meal.price,
+          subtotal: meal.subtotal,
+          _id: (meal as any)._id
+        })),
+        deliveryDate: order.deliveryDate,
+        deliverySlot: order.deliverySlot
+      }
+    }
+  };
+};
+
 // Export the tracking services
 export const orderService = {
   createOrder,
+  createOrderFromCart,
   verifyPayment,
   getOrders,
   calculateRevenue,
@@ -470,4 +685,5 @@ export const orderService = {
   setEstimatedDelivery,
   getUserOrders,
   deleteOrder,
+  getProviderOrders,
 };

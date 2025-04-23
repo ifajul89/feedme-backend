@@ -22,22 +22,24 @@ const userValidationSchema = z.object({
       .max(20, { message: 'Password can not be more than 20 characters' }),
       
     role: z
-      .enum(['user', 'admin', 'provider'], {
+      .enum(['admin', 'provider', 'customer'], {
         required_error: 'Role must be provided',
       })
-      .default('user'),
+      .default('customer'),
 
-    // Optional fields
     phone: z
-      .string()
-      .regex(/^(\+?88)?01[3-9]\d{8}$/, 'Invalid phone number format')
-      .optional(),
+      .string({
+        required_error: 'Phone number is required',
+      })
+      .regex(/^(\+?88)?01[3-9]\d{8}$/, 'Invalid phone number format'),
 
     address: z
-      .string()
-      .max(200, 'Address cannot be more than 200 characters')
-      .optional(),
+      .string({
+        required_error: 'Address is required',
+      })
+      .max(200, 'Address cannot be more than 200 characters'),
 
+    // Optional fields
     city: z
       .string()
       .max(50, 'City name cannot be more than 50 characters')

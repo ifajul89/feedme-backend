@@ -18,11 +18,16 @@ const cartSchema = new Schema<ICart>({
   },
   customerEmail: {
     type: String,
+    required: true,
+  },
+  deliveryAddress: {
+    type: String,
+    required: false,
   },
   items: [{
     mealId: {
       type: Schema.Types.ObjectId,
-      ref: 'MealMenu',
+      ref: 'Meal',
       required: true,
     },
     mealName: {
@@ -31,7 +36,7 @@ const cartSchema = new Schema<ICart>({
     },
     providerId: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'Provider',
       required: true,
     },
     providerName: {
@@ -40,6 +45,7 @@ const cartSchema = new Schema<ICart>({
     },
     providerEmail: {
       type: String,
+      required: true,
     },
     quantity: {
       type: Number,
@@ -61,24 +67,28 @@ const cartSchema = new Schema<ICart>({
     customization: {
       spiceLevel: {
         type: String,
-        enum: ['Mild', 'Medium', 'Hot'],
+        required: false,
       },
       removedIngredients: [{
         type: String,
       }],
       addOns: [{
-        name: String,
-        price: Number,
+        name: {
+          type: String,
+          required: false,
+        },
+        price: {
+          type: Number,
+          required: true,
+        },
       }],
-      specialInstructions: String,
+      specialInstructions: {
+        type: String,
+      },
     },
   }],
   totalAmount: {
     type: Number,
-    required: true,
-  },
-  deliveryAddress: {
-    type: String,
     required: true,
   },
 }, {

@@ -14,14 +14,14 @@ router.get('/:id', auth(USER_ROLE.admin, USER_ROLE.provider), userController.get
 // 3. Update user information (email, name, etc. but not password)
 router.patch(
   '/update/:id',
-  auth(USER_ROLE.user, USER_ROLE.admin, USER_ROLE.provider),
+  auth(USER_ROLE.customer, USER_ROLE.admin, USER_ROLE.provider),
   userController.updateUserInfo,
 );
 
 // 4. Change password (dedicated endpoint)
 router.patch(
   '/change-password/:id',
-  auth(USER_ROLE.user, USER_ROLE.admin, USER_ROLE.provider),
+  auth(USER_ROLE.customer, USER_ROLE.admin, USER_ROLE.provider),
   userController.changePassword,
 );
 

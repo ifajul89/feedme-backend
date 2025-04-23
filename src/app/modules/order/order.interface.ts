@@ -9,11 +9,22 @@ export interface TOrder {
   address: string;
   city: string;
   zipCode: string;
-  products: {
-    product: Types.ObjectId;
+  deliveryDate: Date;
+  deliverySlot: string;
+  meals: {
+    mealId: Types.ObjectId;
     quantity: number;
     price: number;
     subtotal: number;
+    customization?: {
+      spiceLevel?: string;
+      removedIngredients?: string[];
+      addOns?: {
+        name: string;
+        price: number;
+      }[];
+      specialInstructions?: string;
+    };
   }[];
   subtotal: number;
   tax: number;

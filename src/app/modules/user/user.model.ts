@@ -11,14 +11,17 @@ const UserSchema = new Schema<TUser>(
     // city: { type: String, required: true },
     // address: { type: String, required: true, default: "Dhaka,Bangladesh" },
     email: { type: String, required: true, unique: true },
-    // phone: { type: String, required: true, unique: true },
+    phone: { type: String, required: true, unique: true },
+    address: { type: String, required: true },
     password: { type: String, required: true },
-    role: { type: String, enum: ['admin', 'user', 'provider'], default: 'user' },
+    role: { 
+      type: String, 
+      enum: ['admin', 'provider', 'customer'], 
+      default: 'customer' 
+    },
     isBlocked: { type: Boolean, default: false },
     
     // Optional fields
-    phone: { type: String, unique: true, sparse: true },
-    address: { type: String },
     city: { type: String },
     profileImage: { type: String },
   },

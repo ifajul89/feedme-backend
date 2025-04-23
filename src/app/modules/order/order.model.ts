@@ -5,7 +5,7 @@ const OrderSchema = new Schema<TOrder>(
   {
     user: {
       type: Schema.Types.ObjectId,
-      ref: 'Product',
+      ref: 'User',
       required: true,
     },
     customerFirstName: {
@@ -36,11 +36,19 @@ const OrderSchema = new Schema<TOrder>(
       type: String,
       required: true,
     },
-    products: [
+    deliveryDate: {
+      type: Date,
+      required: true
+    },
+    deliverySlot: {
+      type: String,
+      required: true
+    },
+    meals: [
       {
-        product: {
+        mealId: {
           type: Schema.Types.ObjectId,
-          ref: 'Product',
+          ref: 'MealMenu',
           required: true,
         },
         quantity: {
@@ -55,6 +63,15 @@ const OrderSchema = new Schema<TOrder>(
           type: Number,
           required: true,
         },
+        customization: {
+          spiceLevel: String,
+          removedIngredients: [String],
+          addOns: [{
+            name: String,
+            price: Number
+          }],
+          specialInstructions: String
+        }
       },
     ],
     subtotal: {

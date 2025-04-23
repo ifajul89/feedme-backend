@@ -16,7 +16,7 @@ export interface ICart {
     deliveryDate: Date;
     deliverySlot: string;
     customization: {
-      spiceLevel?: 'Mild' | 'Medium' | 'Hot';
+      spiceLevel?: string;
       removedIngredients?: string[];
       addOns?: {
         name: string;

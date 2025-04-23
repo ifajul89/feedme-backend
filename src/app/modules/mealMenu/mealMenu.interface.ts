@@ -42,7 +42,7 @@ export type MealTypes = {
     quantity: number;
     specialInstructions?: string;
     preferences?: {
-      spiceLevel?: 'Mild' | 'Medium' | 'Hot' | 'Extra Hot';
+      spiceLevel?: string;
       allergies?: string[];
       dietaryRestrictions?: string[];
       extraIngredients?: string[];

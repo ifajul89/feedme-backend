@@ -151,7 +151,7 @@ const updateCartItem = async (
   updateData: { 
     quantity?: number;
     customization?: {
-      spiceLevel?: 'Mild' | 'Medium' | 'Hot';
+      spiceLevel?: string;
       removedIngredients?: string[];
       addOns?: { name: string; price: number }[];
       specialInstructions?: string;
