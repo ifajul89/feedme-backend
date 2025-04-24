@@ -26,7 +26,20 @@ const createOrderFromCart = catchAsync(async (req: Request, res: Response) => {
 });
 
 const verifyPayment = catchAsync(async (req: Request, res: Response) => {
-  const result = await orderService.verifyPayment(req.body.order_id);
+  // Get order_id from query parameters for GET request
+  const order_id = req.query.order_id as string || req.body.order_id as string;
+  
+  if (!order_id) {
+    sendResponse(res, {
+      statusCode: httpStatus.BAD_REQUEST,
+      status: false,
+      message: 'Order ID is required',
+      data: null,
+    });
+    return;
+  }
+  
+  const result = await orderService.verifyPayment(order_id);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     status: true,
