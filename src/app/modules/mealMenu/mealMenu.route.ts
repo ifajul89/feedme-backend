@@ -25,6 +25,7 @@ enum ENUM_USER_ROLE {
   ADMIN = 'admin',
   USER = 'user',
   PROVIDER = 'provider',
+  CUSTOMER = 'customer',
 }
 
 const router = express.Router();
@@ -165,7 +166,7 @@ router.patch(
 // Rate a meal
 router.post(
   '/:id/ratings',
-  auth(ENUM_USER_ROLE.USER, ENUM_USER_ROLE.PROVIDER),
+  auth(ENUM_USER_ROLE.CUSTOMER, ENUM_USER_ROLE.PROVIDER),
   validateRequest(MealMenuValidation.ratingValidationSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {

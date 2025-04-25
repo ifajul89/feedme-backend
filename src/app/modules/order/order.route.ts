@@ -79,8 +79,8 @@ router.patch(
   orderController.setEstimatedDelivery,
 );
 
-// Admin-only delete route
-router.delete('/:orderId', auth(USER_ROLE.admin), orderController.deleteOrder);
+// provider delete route
+router.delete('/:orderId', auth(USER_ROLE.admin, USER_ROLE.provider), orderController.deleteOrder);
 
 // Get user's orders
 router.get(
