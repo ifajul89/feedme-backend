@@ -252,7 +252,8 @@ const addMealRating = async (
   mealId: string,
   userId: string,
   rating: number,
-  comment?: string
+  comment?: string,
+  userName?: string
 ) => {
   try {
     // Validate rating
@@ -266,9 +267,12 @@ const addMealRating = async (
       throw new Error(`Meal with id ${mealId} not found`);
     }
 
+    // Get current date and time
+    const currentDate = new Date();
+
     // Check if user has already reviewed this meal
     const existingReviewIndex = meal.ratings?.reviews?.findIndex(
-      (review: { userId: any }) => review.userId.toString() === userId
+      (review: { userId: mongoose.Types.ObjectId | string }) => review.userId.toString() === userId
     );
 
     if (existingReviewIndex !== undefined && existingReviewIndex >= 0) {
@@ -278,7 +282,11 @@ const addMealRating = async (
         if (comment) {
           meal.ratings.reviews[existingReviewIndex].comment = comment;
         }
-        meal.ratings.reviews[existingReviewIndex].date = new Date();
+        meal.ratings.reviews[existingReviewIndex].date = currentDate;
+        // Store customer name if provided
+        if (userName) {
+          meal.ratings.reviews[existingReviewIndex].customerName = userName;
+        }
       }
     } else {
       // Add new review
@@ -290,7 +298,8 @@ const addMealRating = async (
         userId,
         rating,
         comment,
-        date: new Date()
+        date: currentDate,
+        customerName: userName
       });
       
       // Increment count

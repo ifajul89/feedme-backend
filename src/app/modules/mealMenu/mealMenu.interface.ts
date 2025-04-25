@@ -19,6 +19,7 @@ export type MealTypes = {
         rating: number;
         comment?: string;
         date: Date;
+        customerName?: string;
       }>;
     };
     nutritionalInfo?: {

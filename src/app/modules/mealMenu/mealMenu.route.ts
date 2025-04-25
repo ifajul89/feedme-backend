@@ -172,20 +172,28 @@ router.post(
     try {
       const { id } = req.params;
       const userId = req.user?._id;
+      const userName = req.user?.name;
       const { rating, comment } = req.body;
 
       const result = await MealMenuServices.addMealRating(
         id,
         userId,
         rating,
-        comment
+        comment,
+        userName
       );
+
+      const currentDate = new Date();
 
       sendResponse(res, {
         success: true,
         statusCode: httpStatus.OK,
         message: 'Meal rating added successfully',
-        data: result,
+        data: {
+          ...result.toObject(),
+          reviewDate: currentDate,
+          customerName: userName
+        },
       });
     } catch (error) {
       next(error);
