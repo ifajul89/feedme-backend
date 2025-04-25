@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { orderController } from './order.controller';
 import validateRequest from '../../middleware/validateRequest';
 import { orderValidation } from './order.validation';
@@ -9,6 +9,7 @@ import { orderUtils } from './order.utils';
 import nodemailer from 'nodemailer';
 import config from '../../config';
 import { OrderModel } from './order.model';
+import { orderService } from './order.service';
 // import validateRequest from '../../middleware/validateRequest';
 // import orderValidation from './order.validation';
 
@@ -108,48 +109,10 @@ router.get(
   orderController.getOrdersByProviderId
 );
 
-// Get order by ID
-router.get(
-  '/:orderId',
-  auth(USER_ROLE.admin, USER_ROLE.customer, USER_ROLE.provider),
-  orderController.getOrderById
-);
-
-// Update order tracking (admin only)
-router.patch(
-  '/:orderId/tracking',
-  auth(USER_ROLE.admin, USER_ROLE.provider),
-  validateRequest(orderValidation.updateTrackingZodSchema),
-  orderController.updateOrderTracking
-);
-
-// Assign tracking number (admin only)
-router.patch(
-  '/:orderId/assign-tracking',
-  auth('admin'),
-  validateRequest(orderValidation.assignTrackingZodSchema),
-  orderController.assignTrackingNumber
-);
-
-// Set estimated delivery date (admin only)
-router.patch(
-  '/:orderId/estimated-delivery',
-  auth('admin'),
-  validateRequest(orderValidation.setEstimatedDeliveryZodSchema),
-  orderController.setEstimatedDelivery
-);
-
-// Delete order (admin only)
-router.delete(
-  '/:orderId',
-  auth('admin'),
-  orderController.deleteOrder
-);
-
 // Test route for email (temporary)
 router.get(
   '/test-email',
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
       // Create simple test order data
       const testOrder = {
@@ -196,12 +159,13 @@ router.get(
           to: req.query.email || 'test@example.com'
         }
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('Test email failed:', error);
       res.status(500).json({
         status: false,
         message: 'Failed to send test email',
-        error: error.message
+        error: errorMessage
       });
     }
   }
@@ -210,7 +174,7 @@ router.get(
 // Test route for sending email to a real order
 router.get(
   '/send-order-email/:orderId',
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
       const orderId = req.params.orderId;
       const targetEmail = req.query.email?.toString();
@@ -247,6 +211,13 @@ router.get(
           user: config.EMAIL_USER,
           pass: config.EMAIL_PASS,
         },
+        // Add these options for better deliverability
+        tls: {
+          rejectUnauthorized: false
+        },
+        pool: true,
+        maxConnections: 5,
+        maxMessages: 100
       });
       
       // Send email - use provided email or fall back to order email
@@ -255,13 +226,24 @@ router.get(
       console.log('Sending email to:', mailTo);
       
       const mailResult = await transporter.sendMail({
-        from: `"FeedMe Order Confirmation" <${config.EMAIL_USER}>`,
+        from: {
+          name: "FeedMe Order Confirmation",
+          address: config.EMAIL_USER || 'noreply@feedme.com'
+        },
         to: mailTo,
         subject: `FeedMe - Order Confirmation #${order.trackingNumber}`,
         html: emailHtml,
+        headers: {
+          'X-Priority': '1',
+          'Importance': 'high',
+          'X-MSMail-Priority': 'High',
+          'Precedence': 'bulk'
+        },
+        text: `Thank you for your order #${order.trackingNumber}! We're preparing your delicious meals right now. You can track your order using your tracking number.`
       });
       
-      console.log('Email sent result:', mailResult);
+      const messageId = mailResult?.messageId || 'No message ID';
+      console.log('Email sent result:', {messageId});
       
       res.status(200).json({
         status: true,
@@ -269,18 +251,89 @@ router.get(
         data: {
           orderId: order._id,
           to: mailTo,
-          messageId: mailResult.messageId
+          messageId: messageId
         }
       });
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('Failed to send order email:', error);
       res.status(500).json({
         status: false,
         message: 'Failed to send order email',
-        error: error.message
+        error: errorMessage
       });
     }
   }
+);
+
+// Test route for sending provider notifications for an order
+router.get(
+  '/send-provider-notifications/:orderId',
+  auth(USER_ROLE.admin),
+  async (req: Request, res: Response) => {
+    try {
+      const orderId = req.params.orderId;
+      
+      console.log('Manually sending provider notifications for order:', orderId);
+      
+      // Call the provider notification service
+      await orderService.sendProviderOrderNotifications(orderId);
+      
+      res.status(200).json({
+        status: true,
+        message: 'Provider notifications sent successfully',
+        data: {
+          orderId: orderId
+        }
+      });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Failed to send provider notifications:', error);
+      res.status(500).json({
+        status: false,
+        message: 'Failed to send provider notifications',
+        error: errorMessage
+      });
+    }
+  }
+);
+
+// Get order by ID
+router.get(
+  '/:orderId',
+  auth(USER_ROLE.admin, USER_ROLE.customer, USER_ROLE.provider),
+  orderController.getOrderById
+);
+
+// Update order tracking (admin only)
+router.patch(
+  '/:orderId/tracking',
+  auth(USER_ROLE.admin, USER_ROLE.provider),
+  validateRequest(orderValidation.updateTrackingZodSchema),
+  orderController.updateOrderTracking
+);
+
+// Assign tracking number (admin only)
+router.patch(
+  '/:orderId/assign-tracking',
+  auth('admin'),
+  validateRequest(orderValidation.assignTrackingZodSchema),
+  orderController.assignTrackingNumber
+);
+
+// Set estimated delivery date (admin only)
+router.patch(
+  '/:orderId/estimated-delivery',
+  auth('admin'),
+  validateRequest(orderValidation.setEstimatedDeliveryZodSchema),
+  orderController.setEstimatedDelivery
+);
+
+// Delete order (admin only)
+router.delete(
+  '/:orderId',
+  auth('admin'),
+  orderController.deleteOrder
 );
 
 export const orderRoutes = router;

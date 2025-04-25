@@ -11,6 +11,7 @@ import { MealMenuModel } from '../mealMenu/mealMenu.model';
 // import sendEmail from '../../utils/sendEmail';
 import nodemailer from 'nodemailer';
 import config from '../../config';
+import { UserModel } from '../user/user.model';
 
 // const createOrder = async (user: TUser, orderData: any, client_ip: string) => {
 
@@ -238,6 +239,109 @@ const createOrder = async (
 //   return payment.checkout_url;
 // };
 
+// Function to send order notification emails to providers
+const sendProviderOrderNotifications = async (orderId: string) => {
+  try {
+    // Get the order with populated meal details
+    const order = await OrderModel.findById(orderId).populate({
+      path: 'meals.mealId',
+      select: 'name providerId ingredients price image category'
+    });
+
+    if (!order) {
+      console.error(`Cannot send provider notifications: Order ${orderId} not found`);
+      return;
+    }
+
+    console.log(`Preparing to send provider notifications for order: ${orderId}`);
+
+    // Group meals by provider ID
+    const mealsByProvider: Record<string, any[]> = {};
+    
+    // Process each meal in the order
+    order.meals.forEach(meal => {
+      if (meal.mealId && typeof meal.mealId === 'object' && 'providerId' in meal.mealId) {
+        const providerId = String(meal.mealId.providerId);
+        
+        if (!mealsByProvider[providerId]) {
+          mealsByProvider[providerId] = [];
+        }
+        
+        mealsByProvider[providerId].push(meal);
+      }
+    });
+
+    console.log(`Found ${Object.keys(mealsByProvider).length} providers to notify`);
+
+    // Create a transporter for sending emails
+    const transporter = nodemailer.createTransport({
+      host: config.EMAIL_HOST,
+      port: Number(config.EMAIL_PORT),
+      secure: config.EMAIL_PORT === '465',
+      auth: {
+        user: config.EMAIL_USER,
+        pass: config.EMAIL_PASS,
+      },
+      // Add these options for better deliverability
+      tls: {
+        rejectUnauthorized: false // Helps with self-signed certificates
+      },
+      pool: true, // Use connection pool for better reliability
+      maxConnections: 5,
+      maxMessages: 100
+    });
+
+    // For each provider, find their email and send a notification
+    const notificationPromises = Object.entries(mealsByProvider).map(async ([providerId, meals]) => {
+      try {
+        // Find the provider's email
+        const provider = await UserModel.findById(providerId);
+        
+        if (!provider || !provider.email) {
+          console.error(`Cannot send notification: Provider ${providerId} not found or has no email`);
+          return;
+        }
+
+        console.log(`Sending order notification to provider ${provider.name} (${provider.email})`);
+
+        // Generate email content specific to this provider's meals
+        const emailHtml = orderUtils.generateProviderOrderNotificationEmail(order, meals);
+        
+        // Send the email with improved headers
+        const mailResult = await transporter.sendMail({
+          from: {
+            name: "FeedMe Orders",
+            address: config.EMAIL_USER || 'noreply@feedme.com' // Provide fallback
+          },
+          to: provider.email,
+          subject: `FeedMe - New Order Notification #${order.trackingNumber}`,
+          html: emailHtml,
+          headers: {
+            'X-Priority': '1', // High priority
+            'Importance': 'high',
+            'X-MSMail-Priority': 'High',
+            'Precedence': 'bulk'
+          },
+          // Add text version for better deliverability
+          text: `New Order Received! You have received a new order #${order.trackingNumber} that includes your meals. Please log in to your account to view the complete details.`
+        });
+
+        const messageId = mailResult?.messageId || 'No message ID';
+        console.log(`Email sent to provider ${provider.email}, message ID: ${messageId}`);
+        return mailResult;
+      } catch (providerError) {
+        console.error(`Error sending notification to provider ${providerId}:`, providerError);
+      }
+    });
+
+    // Wait for all notification emails to be sent
+    await Promise.all(notificationPromises);
+    console.log(`Completed sending provider notifications for order ${orderId}`);
+  } catch (error) {
+    console.error('Error sending provider order notifications:', error);
+  }
+};
+
 const verifyPayment = async (order_id: string) => {
   try {
     // Find the order from database
@@ -347,19 +451,40 @@ const verifyPayment = async (order_id: string) => {
               user: config.EMAIL_USER,
               pass: config.EMAIL_PASS,
             },
+            // Add these options for better deliverability
+            tls: {
+              rejectUnauthorized: false
+            },
+            pool: true,
+            maxConnections: 5,
+            maxMessages: 100
           });
 
           console.log('Transporter created for direct email sending');
 
           // Send email directly using nodemailer
           const mailResult = await transporter.sendMail({
-            from: `"FeedMe Support" <${config.EMAIL_USER}>`,
+            from: {
+              name: "FeedMe Support",
+              address: config.EMAIL_USER || 'noreply@feedme.com'
+            },
             to: updatedOrder.email,
             subject: `FeedMe - Order Confirmation #${updatedOrder.trackingNumber}`,
             html: emailHtml,
+            headers: {
+              'X-Priority': '1',
+              'Importance': 'high',
+              'X-MSMail-Priority': 'High',
+              'Precedence': 'bulk'
+            },
+            text: `Thank you for your order #${updatedOrder.trackingNumber}! We're preparing your delicious meals right now. You can track your order using your tracking number.`
           });
 
-          console.log('Direct email sending result:', mailResult);
+          const messageId = mailResult?.messageId || 'No message ID';
+          console.log('Direct email sending result:', {messageId});
+          
+          // Send notifications to providers with meals in this order
+          await sendProviderOrderNotifications(order._id.toString());
           
           return dynamicResponse;
         }
@@ -472,19 +597,40 @@ const verifyPayment = async (order_id: string) => {
                 user: config.EMAIL_USER,
                 pass: config.EMAIL_PASS,
               },
+              // Add these options for better deliverability
+              tls: {
+                rejectUnauthorized: false
+              },
+              pool: true,
+              maxConnections: 5,
+              maxMessages: 100
             });
 
             console.log('Transporter created for direct email sending');
 
             // Send email directly using nodemailer
             const mailResult = await transporter.sendMail({
-              from: `"FeedMe Support" <${config.EMAIL_USER}>`,
+              from: {
+                name: "FeedMe Support",
+                address: config.EMAIL_USER || 'noreply@feedme.com'
+              },
               to: updatedOrder.email,
               subject: `FeedMe - Order Confirmation #${updatedOrder.trackingNumber}`,
               html: emailHtml,
+              headers: {
+                'X-Priority': '1',
+                'Importance': 'high',
+                'X-MSMail-Priority': 'High',
+                'Precedence': 'bulk'
+              },
+              text: `Thank you for your order #${updatedOrder.trackingNumber}! We're preparing your delicious meals right now. You can track your order using your tracking number.`
             });
 
-            console.log('Direct email sending result:', mailResult);
+            const messageId = mailResult?.messageId || 'No message ID';
+            console.log('Direct email sending result:', {messageId});
+            
+            // Send notifications to providers with meals in this order
+            await sendProviderOrderNotifications(order._id.toString());
           }
         } catch (emailError) {
           console.error('Failed to send order confirmation email:', emailError);
@@ -949,4 +1095,5 @@ export const orderService = {
   getUserOrders,
   deleteOrder,
   getProviderOrders,
+  sendProviderOrderNotifications,
 };
