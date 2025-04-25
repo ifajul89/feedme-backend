@@ -16,6 +16,10 @@ export interface TUser {
   // Optional fields
   city?: string;
   profileImage?: string;
+  
+  // Password reset fields
+  passwordResetToken?: string;
+  passwordResetExpires?: Date;
 }
 
 export type TUserRole = keyof typeof USER_ROLE;

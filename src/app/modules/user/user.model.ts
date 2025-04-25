@@ -24,6 +24,10 @@ const UserSchema = new Schema<TUser>(
     // Optional fields
     city: { type: String },
     profileImage: { type: String },
+    
+    // Password reset fields
+    passwordResetToken: { type: String },
+    passwordResetExpires: { type: Date },
   },
   {
     timestamps: true,
@@ -32,6 +36,9 @@ const UserSchema = new Schema<TUser>(
 
 UserSchema.pre('save', async function (next) {
   const user = this;
+  // Only hash the password if it's modified (or new)
+  if (!user.isModified('password')) return next();
+  
   user.password = await bcrypt.hash(
     user.password,
     Number(config.BCRYPT_SALT_ROUNDS),

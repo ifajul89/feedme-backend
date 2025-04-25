@@ -20,5 +20,15 @@ authRoute.post(
   validateRequest(authValidation.refreshTokenValidationSchema),
   AuthController.refreshToken,
 );
+authRoute.post(
+  '/forgot-password',
+  validateRequest(authValidation.forgotPasswordValidation),
+  AuthController.forgotPassword,
+);
+authRoute.post(
+  '/reset-password',
+  validateRequest(authValidation.resetPasswordValidation),
+  AuthController.resetPassword,
+);
 
 export default authRoute;
