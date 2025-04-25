@@ -8,25 +8,44 @@ interface EmailOptions {
 }
 
 const sendEmail = async (options: EmailOptions) => {
-  const transporter = nodemailer.createTransport({
+  console.log('Attempting to send email to:', options.email);
+  console.log('Email config:', {
     host: config.EMAIL_HOST,
     port: Number(config.EMAIL_PORT),
-    secure: config.EMAIL_PORT === '465',
-    auth: {
-      user: config.EMAIL_USER,
-      pass: config.EMAIL_PASS,
-    },
+    secure: config.EMAIL_PORT === '465'
   });
 
-  // Send email
-  const info = await transporter.sendMail({
-    from: `"FeedMe Support" <${config.EMAIL_USER}>`,
-    to: options.email,
-    subject: options.subject,
-    html: options.html,
-  });
+  try {
+    const transporter = nodemailer.createTransport({
+      host: config.EMAIL_HOST,
+      port: Number(config.EMAIL_PORT),
+      secure: config.EMAIL_PORT === '465',
+      auth: {
+        user: config.EMAIL_USER,
+        pass: config.EMAIL_PASS,
+      },
+    });
 
-  return info;
+    console.log('Nodemailer transporter created successfully');
+
+    // Send email
+    const info = await transporter.sendMail({
+      from: `"FeedMe Support" <${config.EMAIL_USER}>`,
+      to: options.email,
+      subject: options.subject,
+      html: options.html,
+    });
+
+    console.log('Email sent successfully:', {
+      messageId: info.messageId,
+      response: info.response
+    });
+
+    return info;
+  } catch (error) {
+    console.error('Error sending email:', error);
+    throw error;
+  }
 };
 
 export default sendEmail; 

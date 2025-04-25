@@ -8,6 +8,9 @@ import { CartServices } from '../cart/cart.service';
 // import mongoose from 'mongoose';
 import { MealMenuModel } from '../mealMenu/mealMenu.model';
 // import { MealTypes } from '../mealMenu/mealMenu.interface';
+// import sendEmail from '../../utils/sendEmail';
+import nodemailer from 'nodemailer';
+import config from '../../config';
 
 // const createOrder = async (user: TUser, orderData: any, client_ip: string) => {
 
@@ -245,11 +248,18 @@ const verifyPayment = async (order_id: string) => {
       throw new AppError(httpStatus.NOT_FOUND, 'Order not found');
     }
     
+    console.log('Order found for verification:', {
+      id: order._id,
+      email: order.email,
+      name: order.name,
+      mealsCount: order.meals?.length || 0
+    });
+    
     // Get tracking number from the actual order
     const trackingNumber = order.trackingNumber;
     
     // Try to verify with ShurjoPay
-  const verifiedPayment = await orderUtils.verifyPaymentAsync(order_id);
+    const verifiedPayment = await orderUtils.verifyPaymentAsync(order_id);
     
     // Log the received payment data for debugging
     console.log('ShurjoPay verification response:', JSON.stringify(verifiedPayment, null, 2));
@@ -307,6 +317,55 @@ const verifyPayment = async (order_id: string) => {
           estimatedDeliveryDate: new Date(new Date().setDate(new Date().getDate() + 7))
         }
       );
+
+      try {
+        // Get updated order data with populated meals (NOT products)
+        const updatedOrder = await OrderModel.findById(order._id).populate({
+          path: 'meals.mealId',
+          select: 'name price image'
+        });
+
+        console.log('Order updated for email sending:', {
+          id: updatedOrder?._id,
+          email: updatedOrder?.email,
+          mealsCount: updatedOrder?.meals?.length || 0,
+          hasEmail: Boolean(updatedOrder?.email)
+        });
+
+        if (updatedOrder && updatedOrder.email) {
+          // Generate the email content
+          const emailHtml = orderUtils.generateOrderConfirmationEmail(updatedOrder);
+          
+          console.log('Attempting to send order confirmation email to:', updatedOrder.email);
+
+          // Try with direct nodemailer usage like forgotPassword
+          const transporter = nodemailer.createTransport({
+            host: config.EMAIL_HOST,
+            port: Number(config.EMAIL_PORT),
+            secure: config.EMAIL_PORT === '465',
+            auth: {
+              user: config.EMAIL_USER,
+              pass: config.EMAIL_PASS,
+            },
+          });
+
+          console.log('Transporter created for direct email sending');
+
+          // Send email directly using nodemailer
+          const mailResult = await transporter.sendMail({
+            from: `"FeedMe Support" <${config.EMAIL_USER}>`,
+            to: updatedOrder.email,
+            subject: `FeedMe - Order Confirmation #${updatedOrder.trackingNumber}`,
+            html: emailHtml,
+          });
+
+          console.log('Direct email sending result:', mailResult);
+          
+          return dynamicResponse;
+        }
+      } catch (emailError) {
+        console.error('Failed to send order confirmation email:', emailError);
+      }
       
       return dynamicResponse;
     }
@@ -315,41 +374,41 @@ const verifyPayment = async (order_id: string) => {
     if (Array.isArray(verifiedPayment) && verifiedPayment.length > 0) {
       const payment = verifiedPayment[0];
       const bankStatus = payment.bank_status;
-    const isCancelled = bankStatus === 'Cancel';
-    const isPaid = bankStatus === 'Success';
-    const isBankStatusNull = !bankStatus || bankStatus === null;
+      const isCancelled = bankStatus === 'Cancel';
+      const isPaid = bankStatus === 'Success';
+      const isBankStatusNull = !bankStatus || bankStatus === null;
 
-    const updateData: any = {
-      'transaction.bank_status': bankStatus,
+      const updateData: any = {
+        'transaction.bank_status': bankStatus,
         'transaction.sp_code': payment.sp_code,
         'transaction.sp_message': payment.sp_message,
         'transaction.transaction_status': payment.transaction_status,
         'transaction.date_time': payment.date_time,
-      status:
-        bankStatus === 'Success'
-          ? 'Paid'
-          : bankStatus === 'Failed'
-            ? 'Pending'
-            : bankStatus === 'Cancel'
-              ? 'Cancelled'
-              : '',
-    };
+        status:
+          bankStatus === 'Success'
+            ? 'Paid'
+            : bankStatus === 'Failed'
+              ? 'Pending'
+              : bankStatus === 'Cancel'
+                ? 'Cancelled'
+                : '',
+      };
 
-    // If order is cancelled or bank status is null, clear estimated delivery date
-    if (isCancelled || isBankStatusNull) {
-      updateData.estimatedDeliveryDate = undefined;
-    }
+      // If order is cancelled or bank status is null, clear estimated delivery date
+      if (isCancelled || isBankStatusNull) {
+        updateData.estimatedDeliveryDate = undefined;
+      }
 
-    // If order is paid, set estimated delivery date to 7 days from now
-    if (isPaid) {
-      const estimatedDeliveryDate = new Date();
-      estimatedDeliveryDate.setDate(estimatedDeliveryDate.getDate() + 7);
-      updateData.estimatedDeliveryDate = estimatedDeliveryDate;
-    }
+      // If order is paid, set estimated delivery date to 7 days from now
+      if (isPaid) {
+        const estimatedDeliveryDate = new Date();
+        estimatedDeliveryDate.setDate(estimatedDeliveryDate.getDate() + 7);
+        updateData.estimatedDeliveryDate = estimatedDeliveryDate;
+      }
 
       await OrderModel.findByIdAndUpdate(
         order._id,
-      updateData,
+        updateData,
       );
       
       // Add real order data to the payment response without overwriting existing values
@@ -380,6 +439,56 @@ const verifyPayment = async (order_id: string) => {
       }
       if (!payment.value4) {
         payment.value4 = `Shipping: ${order.shipping || 0}`;
+      }
+
+      // Send order confirmation email if payment is successful
+      if (isPaid) {
+        try {
+          // Get updated order data with populated meals (NOT products)
+          const updatedOrder = await OrderModel.findById(order._id).populate({
+            path: 'meals.mealId',
+            select: 'name price image'
+          });
+
+          console.log('Order updated (successful payment) for email sending:', {
+            id: updatedOrder?._id,
+            email: updatedOrder?.email,
+            mealsCount: updatedOrder?.meals?.length || 0,
+            hasEmail: Boolean(updatedOrder?.email)
+          });
+
+          if (updatedOrder && updatedOrder.email) {
+            // Generate the email content
+            const emailHtml = orderUtils.generateOrderConfirmationEmail(updatedOrder);
+            
+            console.log('Attempting to send order confirmation email to:', updatedOrder.email);
+
+            // Try with direct nodemailer usage like forgotPassword
+            const transporter = nodemailer.createTransport({
+              host: config.EMAIL_HOST,
+              port: Number(config.EMAIL_PORT),
+              secure: config.EMAIL_PORT === '465',
+              auth: {
+                user: config.EMAIL_USER,
+                pass: config.EMAIL_PASS,
+              },
+            });
+
+            console.log('Transporter created for direct email sending');
+
+            // Send email directly using nodemailer
+            const mailResult = await transporter.sendMail({
+              from: `"FeedMe Support" <${config.EMAIL_USER}>`,
+              to: updatedOrder.email,
+              subject: `FeedMe - Order Confirmation #${updatedOrder.trackingNumber}`,
+              html: emailHtml,
+            });
+
+            console.log('Direct email sending result:', mailResult);
+          }
+        } catch (emailError) {
+          console.error('Failed to send order confirmation email:', emailError);
+        }
       }
     }
 

@@ -128,6 +128,8 @@ const refreshToken = async (token: string) => {
 
 // Forgot password functionality
 const forgotPassword = async (payload: IForgotPasswordRequest) => {
+  console.log('Forgot password request for email:', payload.email);
+  
   // Find the user by email
   const user = await UserModel.findOne({ email: payload.email });
   if (!user) {
@@ -165,19 +167,34 @@ const forgotPassword = async (payload: IForgotPasswordRequest) => {
     <p>If you didn't request this, please ignore this email and your password will remain unchanged.</p>
   `;
 
+  console.log('Preparing to send password reset email to:', user.email);
+  console.log('Email config in forgotPassword:', {
+    host: config.EMAIL_HOST,
+    port: config.EMAIL_PORT,
+    user: config.EMAIL_USER,
+    pass: config.EMAIL_PASS ? '[REDACTED]' : 'undefined'
+  });
+
   try {
     // Send email
-    await sendEmail({
+    const result = await sendEmail({
       email: user.email,
       subject: 'Your Password Reset Token (valid for 10 min)',
       html: message,
+    });
+
+    console.log('Password reset email sent successfully:', {
+      messageId: result.messageId,
+      response: result.response
     });
 
     return {
       status: 'success',
       message: 'Password reset link sent to email',
     };
-  } catch {
+  } catch (error) {
+    console.error('Error sending password reset email:', error);
+    
     // If email sending fails, clear the reset token fields
     await UserModel.findByIdAndUpdate(user._id, {
       passwordResetToken: undefined,
