@@ -1,10 +1,9 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
 import { orderController } from './order.controller';
 import validateRequest from '../../middleware/validateRequest';
 import { orderValidation } from './order.validation';
 import auth from '../../middleware/auth';
 import { USER_ROLE } from '../user/user.interface';
-import sendEmail from '../../utils/sendEmail';
 import { orderUtils } from './order.utils';
 import nodemailer from 'nodemailer';
 import config from '../../config';
