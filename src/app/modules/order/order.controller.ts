@@ -4,6 +4,11 @@ import catchAsync from '../../utils/catchAsync';
 import sendResponse from '../../utils/sendResponse';
 import httpStatus from 'http-status';
 import { orderService } from './order.service';
+import sendEmail from '../../utils/sendEmail';
+import { orderUtils } from './order.utils';
+import nodemailer from 'nodemailer';
+import config from '../../config';
+import { OrderModel } from './order.model';
 
 const createOrder = catchAsync(async (req: Request, res: Response) => {
   const result = await orderService.createOrder(req.user, req.body, req.ip || '0.0.0.0');
@@ -186,6 +191,158 @@ const getDetails = catchAsync(
   },
 );
 
+const sendTestEmail = catchAsync(async (req: Request, res: Response) => {
+  // Create simple test order data
+  const testOrder = {
+    _id: 'test-order-123',
+    name: 'Test Customer',
+    email: req.query.email || 'test@example.com',
+    phone: '1234567890',
+    address: 'Test Address',
+    city: 'Test City',
+    zipCode: '12345',
+    totalPrice: 1000,
+    subtotal: 850,
+    tax: 50,
+    shipping: 100,
+    trackingNumber: 'TEST-TRK-12345',
+    createdAt: new Date(),
+    products: [
+      {
+        product: { name: 'Test Product' },
+        quantity: 2,
+        price: 425,
+        subtotal: 850
+      }
+    ]
+  };
+
+  // Generate email HTML
+  const emailHtml = orderUtils.generateOrderConfirmationEmail(testOrder);
+
+  // Send test email
+  const result = await sendEmail({
+    email: req.query.email?.toString() || 'test@example.com',
+    subject: 'FeedMe - Test Order Confirmation',
+    html: emailHtml
+  });
+
+  console.log('Test email result:', result);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    status: true,
+    message: 'Test email sent successfully',
+    data: {
+      messageId: result.messageId,
+      to: req.query.email || 'test@example.com'
+    }
+  });
+});
+
+const sendOrderEmail = catchAsync(async (req: Request, res: Response) => {
+  const orderId = req.params.orderId;
+  const targetEmail = req.query.email?.toString();
+  
+  // Get the order with populated meals (NOT products)
+  const order = await OrderModel.findById(orderId).populate({
+    path: 'meals.mealId', // This is the correct path according to the schema
+    select: 'name price image'
+  });
+  
+  if (!order) {
+    sendResponse(res, {
+      statusCode: httpStatus.NOT_FOUND,
+      status: false,
+      message: 'Order not found',
+      data: null
+    });
+    return;
+  }
+  
+  console.log('Found order:', {
+    id: order._id,
+    email: order.email,
+    targetEmail: targetEmail,
+    meals: order.meals?.length || 0 // Use 'meals' instead of 'products'
+  });
+  
+  // Generate the email HTML
+  const emailHtml = orderUtils.generateOrderConfirmationEmail(order);
+  
+  // Create transporter
+  const transporter = nodemailer.createTransport({
+    host: config.EMAIL_HOST,
+    port: Number(config.EMAIL_PORT),
+    secure: config.EMAIL_PORT === '465',
+    auth: {
+      user: config.EMAIL_USER,
+      pass: config.EMAIL_PASS,
+    },
+    // Add these options for better deliverability
+    tls: {
+      rejectUnauthorized: false
+    },
+    pool: true,
+    maxConnections: 5,
+    maxMessages: 100
+  });
+  
+  // Send email - use provided email or fall back to order email
+  const mailTo = targetEmail || order.email;
+  
+  console.log('Sending email to:', mailTo);
+  
+  const mailResult = await transporter.sendMail({
+    from: {
+      name: "FeedMe Order Confirmation",
+      address: config.EMAIL_USER || 'noreply@feedme.com'
+    },
+    to: mailTo,
+    subject: `FeedMe - Order Confirmation #${order.trackingNumber}`,
+    html: emailHtml,
+    headers: {
+      'X-Priority': '1',
+      'Importance': 'high',
+      'X-MSMail-Priority': 'High',
+      'Precedence': 'bulk'
+    },
+    text: `Thank you for your order #${order.trackingNumber}! We're preparing your delicious meals right now. You can track your order using your tracking number.`
+  });
+  
+  const messageId = mailResult?.messageId || 'No message ID';
+  console.log('Email sent result:', {messageId});
+  
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    status: true,
+    message: 'Order confirmation email sent successfully',
+    data: {
+      orderId: order._id,
+      to: mailTo,
+      messageId: messageId
+    }
+  });
+});
+
+const sendProviderNotifications = catchAsync(async (req: Request, res: Response) => {
+  const orderId = req.params.orderId;
+  
+  console.log('Manually sending provider notifications for order:', orderId);
+  
+  // Call the provider notification service
+  await orderService.sendProviderOrderNotifications(orderId);
+  
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    status: true,
+    message: 'Provider notifications sent successfully',
+    data: {
+      orderId: orderId
+    }
+  });
+});
+
 export const orderController = {
   createOrder,
   createOrderFromCart,
@@ -202,4 +359,7 @@ export const orderController = {
   deleteOrder,
   getRevenue,
   getDetails,
+  sendTestEmail,
+  sendOrderEmail,
+  sendProviderNotifications
 };
