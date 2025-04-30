@@ -34,11 +34,11 @@ const OrderSchema = new Schema<TOrder>(
     },
     deliveryDate: {
       type: Date,
-      required: true
+      required: true,
     },
     deliverySlot: {
       type: String,
-      required: true
+      required: true,
     },
     meals: [
       {
@@ -62,12 +62,14 @@ const OrderSchema = new Schema<TOrder>(
         customization: {
           spiceLevel: String,
           removedIngredients: [String],
-          addOns: [{
-            name: String,
-            price: Number
-          }],
-          specialInstructions: String
-        }
+          addOns: [
+            {
+              name: String,
+              price: Number,
+            },
+          ],
+          specialInstructions: String,
+        },
       },
     ],
     subtotal: {

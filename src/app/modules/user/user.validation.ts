@@ -20,7 +20,7 @@ const userValidationSchema = z.object({
         required_error: 'Password is required for your safety',
       })
       .max(20, { message: 'Password can not be more than 20 characters' }),
-      
+
     role: z
       .enum(['admin', 'provider', 'customer'], {
         required_error: 'Role must be provided',
@@ -45,15 +45,9 @@ const userValidationSchema = z.object({
       .max(50, 'City name cannot be more than 50 characters')
       .optional(),
 
-    profileImage: z
-      .string()
-      .url('Invalid profile image URL')
-      .optional(),
+    profileImage: z.string().url('Invalid profile image URL').optional(),
 
-    isBlocked: z
-      .boolean()
-      .default(false)
-      .optional(),
+    isBlocked: z.boolean().default(false).optional(),
   }),
 });
 

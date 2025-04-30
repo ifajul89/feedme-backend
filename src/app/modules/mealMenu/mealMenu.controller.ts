@@ -137,9 +137,9 @@ const getProviderMealMenus = catchAsync(
 const getProviderMenusByEmail = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const email = req.query.email as string;
-    
+
     console.log(`Attempting to fetch menus for provider with email: ${email}`);
-    
+
     if (!email) {
       sendResponse(res, {
         statusCode: httpStatus.BAD_REQUEST,
@@ -149,9 +149,9 @@ const getProviderMenusByEmail = catchAsync(
       });
       return;
     }
-    
+
     const result = await MealMenuServices.getProviderMenusByEmail(email);
-    
+
     sendResponse(res, {
       statusCode: httpStatus.OK,
       status: true,
@@ -169,4 +169,4 @@ export const MealMenuControllers = {
   deleteMealMenu,
   getProviderMealMenus,
   getProviderMenusByEmail,
-}; 
+};

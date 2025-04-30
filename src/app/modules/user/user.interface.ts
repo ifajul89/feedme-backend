@@ -1,7 +1,7 @@
 export const USER_ROLE = {
   admin: 'admin',
   provider: 'provider',
-  customer: 'customer'
+  customer: 'customer',
 } as const;
 
 export interface TUser {
@@ -12,11 +12,11 @@ export interface TUser {
   password: string;
   role: 'admin' | 'provider' | 'customer';
   isBlocked: boolean;
-  
+
   // Optional fields
   city?: string;
   profileImage?: string;
-  
+
   // Password reset fields
   passwordResetToken?: string;
   passwordResetExpires?: Date;

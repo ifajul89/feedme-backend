@@ -21,13 +21,15 @@ const mealMenuSchema = new Schema<MealTypes['TMealMenu']>({
   ratings: {
     average: { type: Number, default: 0 },
     count: { type: Number, default: 0 },
-    reviews: [{
-      userId: { type: Schema.Types.ObjectId, ref: 'User' },
-      rating: { type: Number, min: 1, max: 5 },
-      comment: { type: String },
-      date: { type: Date, default: Date.now },
-      customerName: { type: String }
-    }]
+    reviews: [
+      {
+        userId: { type: Schema.Types.ObjectId, ref: 'User' },
+        rating: { type: Number, min: 1, max: 5 },
+        comment: { type: String },
+        date: { type: Date, default: Date.now },
+        customerName: { type: String },
+      },
+    ],
   },
   nutritionalInfo: {
     calories: { type: Number },
@@ -37,14 +39,17 @@ const mealMenuSchema = new Schema<MealTypes['TMealMenu']>({
   },
   customizationOptions: {
     removeIngredients: [{ type: String }],
-    addOns: [{
-      name: { type: String },
-      price: { type: Number }
-    }],
+    addOns: [
+      {
+        name: { type: String },
+        price: { type: Number },
+      },
+    ],
     spiceLevel: [{ type: String }],
-    noteToChef: { type: Boolean }
-  }
+    noteToChef: { type: Boolean },
+  },
 });
 
 // Create and export the model, checking if it already exists
-export const MealMenuModel = models.MealMenu || model<MealTypes['TMealMenu']>('MealMenu', mealMenuSchema); 
+export const MealMenuModel =
+  models.MealMenu || model<MealTypes['TMealMenu']>('MealMenu', mealMenuSchema);

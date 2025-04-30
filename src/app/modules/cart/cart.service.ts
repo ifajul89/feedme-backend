@@ -15,7 +15,7 @@ const calculateTotalAmount = (items: ICart['items']) => {
     if (item.customization?.addOns && item.customization.addOns.length > 0) {
       const addOnsTotal = item.customization.addOns.reduce(
         (sum, addon) => sum + addon.price,
-        0
+        0,
       );
       itemTotal += addOnsTotal * item.quantity;
     }
@@ -31,7 +31,7 @@ const addToCart = async (userId: string, cartData: Partial<ICart>) => {
     if (!userId || !Types.ObjectId.isValid(userId)) {
       throw new AppError(httpStatus.BAD_REQUEST, 'Valid user ID is required');
     }
-    
+
     // Find the user
     const user = await UserModel.findById(userId);
     if (!user) {
@@ -44,15 +44,27 @@ const addToCart = async (userId: string, cartData: Partial<ICart>) => {
     }
 
     // Validate each item has required fields
-    cartData.items.forEach(item => {
+    cartData.items.forEach((item) => {
       if (!item.mealId || !Types.ObjectId.isValid(item.mealId.toString())) {
-        throw new AppError(httpStatus.BAD_REQUEST, 'Valid meal ID is required for each item');
+        throw new AppError(
+          httpStatus.BAD_REQUEST,
+          'Valid meal ID is required for each item',
+        );
       }
-      if (!item.providerId || !Types.ObjectId.isValid(item.providerId.toString())) {
-        throw new AppError(httpStatus.BAD_REQUEST, 'Valid provider ID is required for each item');
+      if (
+        !item.providerId ||
+        !Types.ObjectId.isValid(item.providerId.toString())
+      ) {
+        throw new AppError(
+          httpStatus.BAD_REQUEST,
+          'Valid provider ID is required for each item',
+        );
       }
       if (!item.price || item.price < 0) {
-        throw new AppError(httpStatus.BAD_REQUEST, 'Valid price is required for each item');
+        throw new AppError(
+          httpStatus.BAD_REQUEST,
+          'Valid price is required for each item',
+        );
       }
     });
 
@@ -65,12 +77,12 @@ const addToCart = async (userId: string, cartData: Partial<ICart>) => {
     if (cart) {
       // If cart exists, update it
       const currentItems = [...cart.items];
-      
+
       // Add new items to the cart
       if (cartData.items) {
-        cartData.items.forEach(newItem => {
+        cartData.items.forEach((newItem) => {
           const existingItemIndex = currentItems.findIndex(
-            item => item.mealId.toString() === newItem.mealId.toString()
+            (item) => item.mealId.toString() === newItem.mealId.toString(),
           );
 
           if (existingItemIndex !== -1) {
@@ -78,7 +90,8 @@ const addToCart = async (userId: string, cartData: Partial<ICart>) => {
             currentItems[existingItemIndex] = {
               ...currentItems[existingItemIndex],
               ...newItem,
-              quantity: currentItems[existingItemIndex].quantity + newItem.quantity
+              quantity:
+                currentItems[existingItemIndex].quantity + newItem.quantity,
             };
           } else {
             // Add new item
@@ -90,7 +103,7 @@ const addToCart = async (userId: string, cartData: Partial<ICart>) => {
       // Update cart with new items and recalculate total
       cart.items = currentItems;
       cart.totalAmount = calculateTotalAmount(currentItems);
-      
+
       // Update delivery address if provided
       if (cartData.deliveryAddress) {
         cart.deliveryAddress = cartData.deliveryAddress;
@@ -129,73 +142,73 @@ const getCart = async (userId: string) => {
   if (!userId || !Types.ObjectId.isValid(userId)) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Valid user ID is required');
   }
-  
+
   const cart = await Cart.findOne({ userId: new Types.ObjectId(userId) });
-  
+
   if (!cart) {
-    return { 
-      userId, 
-      items: [], 
+    return {
+      userId,
+      items: [],
       totalAmount: 0,
-      deliveryAddress: ''
+      deliveryAddress: '',
     };
   }
-  
+
   return cart;
 };
 
 // Update cart item
 const updateCartItem = async (
-  userId: string, 
-  mealId: string, 
-  updateData: { 
+  userId: string,
+  mealId: string,
+  updateData: {
     quantity?: number;
     customization?: {
       spiceLevel?: string;
       removedIngredients?: string[];
       addOns?: { name: string; price: number }[];
       specialInstructions?: string;
-    }
-  }
+    };
+  },
 ) => {
   if (!userId || !Types.ObjectId.isValid(userId)) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Valid user ID is required');
   }
-  
+
   if (!mealId || !Types.ObjectId.isValid(mealId)) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Valid meal ID is required');
   }
-  
+
   const cart = await Cart.findOne({ userId: new Types.ObjectId(userId) });
-  
+
   if (!cart) {
     throw new AppError(httpStatus.NOT_FOUND, 'Cart not found');
   }
-  
+
   const itemIndex = cart.items.findIndex(
-    item => item.mealId.toString() === mealId
+    (item) => item.mealId.toString() === mealId,
   );
-  
+
   if (itemIndex === -1) {
     throw new AppError(httpStatus.NOT_FOUND, 'Item not found in cart');
   }
-  
+
   // Update quantity if provided
   if (updateData.quantity) {
     cart.items[itemIndex].quantity = updateData.quantity;
   }
-  
+
   // Update customization if provided
   if (updateData.customization) {
     cart.items[itemIndex].customization = {
       ...cart.items[itemIndex].customization,
-      ...updateData.customization
+      ...updateData.customization,
     };
   }
-  
+
   // Recalculate total amount
   cart.totalAmount = calculateTotalAmount(cart.items);
-  
+
   const updatedCart = await cart.save();
   return updatedCart;
 };
@@ -205,33 +218,33 @@ const removeCartItem = async (userId: string, mealId: string) => {
   if (!userId || !Types.ObjectId.isValid(userId)) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Valid user ID is required');
   }
-  
+
   if (!mealId || !Types.ObjectId.isValid(mealId)) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Valid meal ID is required');
   }
-  
+
   const cart = await Cart.findOne({ userId: new Types.ObjectId(userId) });
-  
+
   if (!cart) {
     throw new AppError(httpStatus.NOT_FOUND, 'Cart not found');
   }
-  
+
   const initialItemsCount = cart.items.length;
-  cart.items = cart.items.filter(item => item.mealId.toString() !== mealId);
-  
+  cart.items = cart.items.filter((item) => item.mealId.toString() !== mealId);
+
   if (cart.items.length === initialItemsCount) {
     throw new AppError(httpStatus.NOT_FOUND, 'Item not found in cart');
   }
-  
+
   // If all items are removed, delete the cart
   if (cart.items.length === 0) {
     await Cart.findByIdAndDelete(cart._id);
     return { success: true, message: 'Cart is now empty and has been removed' };
   }
-  
+
   // Recalculate total amount
   cart.totalAmount = calculateTotalAmount(cart.items);
-  
+
   const updatedCart = await cart.save();
   return updatedCart;
 };
@@ -241,15 +254,15 @@ const clearCart = async (userId: string) => {
   if (!userId || !Types.ObjectId.isValid(userId)) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Valid user ID is required');
   }
-  
-  const result = await Cart.findOneAndDelete({ 
-    userId: new Types.ObjectId(userId) 
+
+  const result = await Cart.findOneAndDelete({
+    userId: new Types.ObjectId(userId),
   });
-  
+
   if (!result) {
     throw new AppError(httpStatus.NOT_FOUND, 'Cart not found');
   }
-  
+
   return { success: true, message: 'Cart cleared successfully' };
 };
 
@@ -258,15 +271,18 @@ const getCartByEmail = async (email: string) => {
   if (!email) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Valid email is required');
   }
-  
+
   // Find user by email first
   const UserModel = mongoose.model('User');
   const user = await UserModel.findOne({ email });
-  
+
   if (!user) {
-    throw new AppError(httpStatus.NOT_FOUND, `User with email ${email} not found`);
+    throw new AppError(
+      httpStatus.NOT_FOUND,
+      `User with email ${email} not found`,
+    );
   }
-  
+
   // Then get their cart using the existing function
   return await getCart(user._id.toString());
 };
@@ -276,15 +292,18 @@ const deleteCartByEmail = async (email: string) => {
   if (!email) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Valid email is required');
   }
-  
+
   // Find user by email first
   const UserModel = mongoose.model('User');
   const user = await UserModel.findOne({ email });
-  
+
   if (!user) {
-    throw new AppError(httpStatus.NOT_FOUND, `User with email ${email} not found`);
+    throw new AppError(
+      httpStatus.NOT_FOUND,
+      `User with email ${email} not found`,
+    );
   }
-  
+
   // Then delete their cart using the existing function
   return await clearCart(user._id.toString());
 };
@@ -294,19 +313,22 @@ const removeItemByEmail = async (email: string, mealId: string) => {
   if (!email) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Valid email is required');
   }
-  
+
   if (!mealId || !Types.ObjectId.isValid(mealId)) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Valid meal ID is required');
   }
-  
+
   // Find user by email first
   const UserModel = mongoose.model('User');
   const user = await UserModel.findOne({ email });
-  
+
   if (!user) {
-    throw new AppError(httpStatus.NOT_FOUND, `User with email ${email} not found`);
+    throw new AppError(
+      httpStatus.NOT_FOUND,
+      `User with email ${email} not found`,
+    );
   }
-  
+
   // Then remove the specific meal item from their cart
   return await removeCartItem(user._id.toString(), mealId);
 };
@@ -319,5 +341,5 @@ export const CartServices = {
   clearCart,
   getCartByEmail,
   deleteCartByEmail,
-  removeItemByEmail
-}; 
+  removeItemByEmail,
+};

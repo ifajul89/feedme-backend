@@ -33,7 +33,7 @@ const addToCart = catchAsync(
       }
 
       const userId = req.user._id;
-      
+
       // Process customization data from the frontend
       const {
         mealId,
@@ -53,7 +53,7 @@ const addToCart = catchAsync(
         spiceLevel = null,
         removedIngredients = [],
         addOns = [],
-        specialInstructions = ''
+        specialInstructions = '',
       } = customization;
 
       // Validate required fields
@@ -74,7 +74,7 @@ const addToCart = catchAsync(
           data: null,
         });
       }
-      
+
       // Always fetch the provider email from the database or use the one from request
       let providerEmail: string | undefined = req.body.providerEmail;
       if (!providerEmail) {
@@ -118,26 +118,28 @@ const addToCart = catchAsync(
       const cartData = {
         customerEmail,
         deliveryAddress,
-        items: [{
-          mealId: new Types.ObjectId(mealId),
-          mealName,
-          providerId: new Types.ObjectId(providerId),
-          providerName,
-          providerEmail,
-          quantity,
-          price,
-          deliveryDate: new Date(deliveryDate),
-          deliverySlot,
-          customization: {
-            spiceLevel,
-            removedIngredients,
-            addOns: addOns.map((addon: { name: string; price: number }) => ({
-              name: addon.name,
-              price: addon.price
-            })),
-            specialInstructions
-          }
-        }]
+        items: [
+          {
+            mealId: new Types.ObjectId(mealId),
+            mealName,
+            providerId: new Types.ObjectId(providerId),
+            providerName,
+            providerEmail,
+            quantity,
+            price,
+            deliveryDate: new Date(deliveryDate),
+            deliverySlot,
+            customization: {
+              spiceLevel,
+              removedIngredients,
+              addOns: addOns.map((addon: { name: string; price: number }) => ({
+                name: addon.name,
+                price: addon.price,
+              })),
+              specialInstructions,
+            },
+          },
+        ],
       };
 
       const result = await CartServices.addToCart(userId, cartData);
@@ -152,7 +154,7 @@ const addToCart = catchAsync(
       console.error('Error in addToCart controller:', error);
       next(error);
     }
-  }
+  },
 );
 
 // Get cart
@@ -191,7 +193,7 @@ const getCart = catchAsync(
       console.error('Error in getCart controller:', error);
       next(error);
     }
-  }
+  },
 );
 
 // Update cart item
@@ -219,7 +221,7 @@ const updateCartItem = catchAsync(
 
       const userId = req.user._id;
       const mealId = req.params.mealId;
-      
+
       // Validate meal ID
       if (!mealId || !Types.ObjectId.isValid(mealId)) {
         return sendResponse(res, {
@@ -229,10 +231,14 @@ const updateCartItem = catchAsync(
           data: null,
         });
       }
-      
+
       const updateData = req.body;
 
-      const result = await CartServices.updateCartItem(userId, mealId, updateData);
+      const result = await CartServices.updateCartItem(
+        userId,
+        mealId,
+        updateData,
+      );
 
       sendResponse(res, {
         statusCode: httpStatus.OK,
@@ -244,7 +250,7 @@ const updateCartItem = catchAsync(
       console.error('Error in updateCartItem controller:', error);
       next(error);
     }
-  }
+  },
 );
 
 // Remove cart item
@@ -272,7 +278,7 @@ const removeCartItem = catchAsync(
 
       const userId = req.user._id;
       const mealId = req.params.mealId;
-      
+
       // Validate meal ID
       if (!mealId || !Types.ObjectId.isValid(mealId)) {
         return sendResponse(res, {
@@ -295,7 +301,7 @@ const removeCartItem = catchAsync(
       console.error('Error in removeCartItem controller:', error);
       next(error);
     }
-  }
+  },
 );
 
 // Clear cart
@@ -334,7 +340,7 @@ const clearCart = catchAsync(
       console.error('Error in clearCart controller:', error);
       next(error);
     }
-  }
+  },
 );
 
 // Get cart by user email
@@ -343,7 +349,7 @@ const getCartByEmail = catchAsync(
     try {
       // Get email from query parameters
       const email = req.query.email as string;
-      
+
       if (!email) {
         return sendResponse(res, {
           statusCode: httpStatus.BAD_REQUEST,
@@ -352,7 +358,7 @@ const getCartByEmail = catchAsync(
           data: null,
         });
       }
-      
+
       // Check if user exists in the request
       if (!req.user) {
         return sendResponse(res, {
@@ -362,9 +368,9 @@ const getCartByEmail = catchAsync(
           data: null,
         });
       }
-      
+
       const result = await CartServices.getCartByEmail(email);
-      
+
       sendResponse(res, {
         statusCode: httpStatus.OK,
         status: true,
@@ -375,7 +381,7 @@ const getCartByEmail = catchAsync(
       console.error('Error in getCartByEmail controller:', error);
       next(error);
     }
-  }
+  },
 );
 
 // Delete cart by user email
@@ -384,7 +390,7 @@ const deleteCartByEmail = catchAsync(
     try {
       // Get email from query parameters
       const email = req.query.email as string;
-      
+
       if (!email) {
         return sendResponse(res, {
           statusCode: httpStatus.BAD_REQUEST,
@@ -393,7 +399,7 @@ const deleteCartByEmail = catchAsync(
           data: null,
         });
       }
-      
+
       // Check if user exists in the request
       if (!req.user) {
         return sendResponse(res, {
@@ -403,9 +409,9 @@ const deleteCartByEmail = catchAsync(
           data: null,
         });
       }
-      
+
       const result = await CartServices.deleteCartByEmail(email);
-      
+
       sendResponse(res, {
         statusCode: httpStatus.OK,
         status: true,
@@ -416,7 +422,7 @@ const deleteCartByEmail = catchAsync(
       console.error('Error in deleteCartByEmail controller:', error);
       next(error);
     }
-  }
+  },
 );
 
 // Remove specific meal from cart by user email
@@ -426,7 +432,7 @@ const removeItemByEmail = catchAsync(
       // Get email from query parameters and mealId from route params
       const email = req.query.email as string;
       const mealId = req.params.mealId;
-      
+
       if (!email) {
         return sendResponse(res, {
           statusCode: httpStatus.BAD_REQUEST,
@@ -435,7 +441,7 @@ const removeItemByEmail = catchAsync(
           data: null,
         });
       }
-      
+
       if (!mealId || !Types.ObjectId.isValid(mealId)) {
         return sendResponse(res, {
           statusCode: httpStatus.BAD_REQUEST,
@@ -444,7 +450,7 @@ const removeItemByEmail = catchAsync(
           data: null,
         });
       }
-      
+
       // Check if user exists in the request
       if (!req.user) {
         return sendResponse(res, {
@@ -454,9 +460,9 @@ const removeItemByEmail = catchAsync(
           data: null,
         });
       }
-      
+
       const result = await CartServices.removeItemByEmail(email, mealId);
-      
+
       sendResponse(res, {
         statusCode: httpStatus.OK,
         status: true,
@@ -467,7 +473,7 @@ const removeItemByEmail = catchAsync(
       console.error('Error in removeItemByEmail controller:', error);
       next(error);
     }
-  }
+  },
 );
 
 export const CartControllers = {
@@ -479,4 +485,4 @@ export const CartControllers = {
   getCartByEmail,
   deleteCartByEmail,
   removeItemByEmail,
-}; 
+};

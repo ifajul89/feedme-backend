@@ -11,5 +11,5 @@ export {
   CartServices,
   CartControllers,
   cartRoutes,
-  CartValidation
-}; 
+  CartValidation,
+};

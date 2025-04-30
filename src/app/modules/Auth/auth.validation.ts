@@ -22,14 +22,15 @@ const forgotPasswordValidation = z.object({
 const resetPasswordValidation = z.object({
   body: z.object({
     token: z.string({ required_error: 'Token is required.' }),
-    password: z.string({ required_error: 'Password is required' })
+    password: z
+      .string({ required_error: 'Password is required' })
       .min(6, 'Password must be at least 6 characters'),
   }),
 });
 
-export const authValidation = { 
-  loginValidation, 
+export const authValidation = {
+  loginValidation,
   refreshTokenValidationSchema,
   forgotPasswordValidation,
-  resetPasswordValidation
+  resetPasswordValidation,
 };

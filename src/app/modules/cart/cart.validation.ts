@@ -17,12 +17,15 @@ const addToCartValidationSchema = z.object({
     // Customization options
     spiceLevel: z.string().optional(),
     removedIngredients: z.array(z.string()).optional().default([]),
-    addOns: z.array(
-      z.object({
-        name: z.string(),
-        price: z.number(),
-      })
-    ).optional().default([]),
+    addOns: z
+      .array(
+        z.object({
+          name: z.string(),
+          price: z.number(),
+        }),
+      )
+      .optional()
+      .default([]),
     specialInstructions: z.string().optional().default(''),
     // Handle typo in field name
     specialInstructionis: z.string().optional(),
@@ -35,12 +38,14 @@ const updateCartItemValidationSchema = z.object({
     quantity: z.number().min(1).optional(),
     spiceLevel: z.string().optional(),
     removedIngredients: z.array(z.string()).optional(),
-    addOns: z.array(
-      z.object({
-        name: z.string(),
-        price: z.number(),
-      })
-    ).optional(),
+    addOns: z
+      .array(
+        z.object({
+          name: z.string(),
+          price: z.number(),
+        }),
+      )
+      .optional(),
     specialInstructions: z.string().optional(),
     // Handle typo in field name
     specialInstructionis: z.string().optional(),
@@ -50,4 +55,4 @@ const updateCartItemValidationSchema = z.object({
 export default {
   addToCartValidationSchema,
   updateCartItemValidationSchema,
-}; 
+};

@@ -1,7 +1,11 @@
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { TUser } from '../user/user.interface';
 import { UserModel } from '../user/user.model';
-import { IForgotPasswordRequest, ILogInUser, IResetPasswordRequest } from './auth.interface';
+import {
+  IForgotPasswordRequest,
+  ILogInUser,
+  IResetPasswordRequest,
+} from './auth.interface';
 import bcrypt from 'bcrypt';
 import config from '../../config';
 import AppError from '../../errors/appError';
@@ -75,7 +79,7 @@ const login = async (payload: ILogInUser) => {
     role: user?.role,
     id: user?._id,
     address: user?.address,
-    phone: user?.phone
+    phone: user?.phone,
   };
   // console.log(user);
 
@@ -129,7 +133,7 @@ const refreshToken = async (token: string) => {
 // Forgot password functionality
 const forgotPassword = async (payload: IForgotPasswordRequest) => {
   console.log('Forgot password request for email:', payload.email);
-  
+
   // Find the user by email
   const user = await UserModel.findOne({ email: payload.email });
   if (!user) {
@@ -172,7 +176,7 @@ const forgotPassword = async (payload: IForgotPasswordRequest) => {
     host: config.EMAIL_HOST,
     port: config.EMAIL_PORT,
     user: config.EMAIL_USER,
-    pass: config.EMAIL_PASS ? '[REDACTED]' : 'undefined'
+    pass: config.EMAIL_PASS ? '[REDACTED]' : 'undefined',
   });
 
   try {
@@ -185,7 +189,7 @@ const forgotPassword = async (payload: IForgotPasswordRequest) => {
 
     console.log('Password reset email sent successfully:', {
       messageId: result.messageId,
-      response: result.response
+      response: result.response,
     });
 
     return {
@@ -194,7 +198,7 @@ const forgotPassword = async (payload: IForgotPasswordRequest) => {
     };
   } catch (error) {
     console.error('Error sending password reset email:', error);
-    
+
     // If email sending fails, clear the reset token fields
     await UserModel.findByIdAndUpdate(user._id, {
       passwordResetToken: undefined,

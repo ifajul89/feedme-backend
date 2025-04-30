@@ -29,4 +29,4 @@ export interface ICart {
   deliveryAddress: string;
   createdAt?: Date;
   updatedAt?: Date;
-} 
+}

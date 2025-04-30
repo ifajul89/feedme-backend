@@ -188,7 +188,7 @@ const changePassword = catchAsync(
       });
     } catch (error) {
       console.error('Password change error:', error);
-      
+
       return sendResponse(res, {
         statusCode: httpStatus.INTERNAL_SERVER_ERROR,
         status: false,

@@ -14,17 +14,17 @@ const UserSchema = new Schema<TUser>(
     phone: { type: String, required: true, unique: true },
     address: { type: String, required: true },
     password: { type: String, required: true },
-    role: { 
-      type: String, 
-      enum: ['admin', 'provider', 'customer'], 
-      default: 'customer' 
+    role: {
+      type: String,
+      enum: ['admin', 'provider', 'customer'],
+      default: 'customer',
     },
     isBlocked: { type: Boolean, default: false },
-    
+
     // Optional fields
     city: { type: String },
     profileImage: { type: String },
-    
+
     // Password reset fields
     passwordResetToken: { type: String },
     passwordResetExpires: { type: Date },
@@ -38,7 +38,7 @@ UserSchema.pre('save', async function (next) {
   const user = this;
   // Only hash the password if it's modified (or new)
   if (!user.isModified('password')) return next();
-  
+
   user.password = await bcrypt.hash(
     user.password,
     Number(config.BCRYPT_SALT_ROUNDS),

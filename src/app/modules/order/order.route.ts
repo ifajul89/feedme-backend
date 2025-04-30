@@ -39,7 +39,11 @@ router.get(
 );
 
 // Get user's orders - new route for users to see their own orders
-router.get('/my-orders', auth(USER_ROLE.admin, USER_ROLE.customer), orderController.getUserOrders);
+router.get(
+  '/my-orders',
+  auth(USER_ROLE.admin, USER_ROLE.customer),
+  orderController.getUserOrders,
+);
 
 router.get(
   '/details',
@@ -51,7 +55,10 @@ router.get('/revenue', auth(USER_ROLE.admin), orderController.getRevenue);
 
 // Tracking routes
 // Public tracking route - accessible without authentication
-router.get('/tracking/:trackingNumber', orderController.getOrderByTrackingNumber);
+router.get(
+  '/tracking/:trackingNumber',
+  orderController.getOrderByTrackingNumber,
+);
 
 // Protected tracking routes - require authentication
 router.get(
@@ -78,27 +85,31 @@ router.patch(
 );
 
 // provider delete route
-router.delete('/:orderId', auth(USER_ROLE.admin, USER_ROLE.provider), orderController.deleteOrder);
+router.delete(
+  '/:orderId',
+  auth(USER_ROLE.admin, USER_ROLE.provider),
+  orderController.deleteOrder,
+);
 
 // Get user's orders
 router.get(
   '/user/orders',
   auth(USER_ROLE.admin, USER_ROLE.provider),
-  orderController.getUserOrders
+  orderController.getUserOrders,
 );
 
 // Get provider's orders - orders containing meals from this provider
 router.get(
   '/provider/orders',
   auth(USER_ROLE.admin, USER_ROLE.provider),
-  orderController.getProviderOrders
+  orderController.getProviderOrders,
 );
 
 // Get orders for a specific provider by providerId (for admin use)
 router.get(
   '/provider/:providerId/orders',
   auth(USER_ROLE.admin, USER_ROLE.provider),
-  orderController.getOrdersByProviderId
+  orderController.getOrdersByProviderId,
 );
 
 // Test route for email (temporary)
@@ -108,21 +119,21 @@ router.get('/test-email', orderController.sendTestEmail);
 router.get(
   '/send-order-email/:orderId',
   auth(USER_ROLE.admin),
-  orderController.sendOrderEmail
+  orderController.sendOrderEmail,
 );
 
 // Test route for sending provider notifications for an order
 router.get(
   '/send-provider-notifications/:orderId',
   auth(USER_ROLE.admin),
-  orderController.sendProviderNotifications
+  orderController.sendProviderNotifications,
 );
 
 // Get order by ID
 router.get(
   '/:orderId',
   auth(USER_ROLE.admin, USER_ROLE.customer, USER_ROLE.provider),
-  orderController.getOrderById
+  orderController.getOrderById,
 );
 
 // Update order tracking (admin only)
@@ -130,7 +141,7 @@ router.patch(
   '/:orderId/tracking',
   auth(USER_ROLE.admin, USER_ROLE.provider),
   validateRequest(orderValidation.updateTrackingZodSchema),
-  orderController.updateOrderTracking
+  orderController.updateOrderTracking,
 );
 
 // Assign tracking number (admin only)
@@ -138,7 +149,7 @@ router.patch(
   '/:orderId/assign-tracking',
   auth('admin'),
   validateRequest(orderValidation.assignTrackingZodSchema),
-  orderController.assignTrackingNumber
+  orderController.assignTrackingNumber,
 );
 
 // Set estimated delivery date (admin only)
@@ -146,14 +157,10 @@ router.patch(
   '/:orderId/estimated-delivery',
   auth('admin'),
   validateRequest(orderValidation.setEstimatedDeliveryZodSchema),
-  orderController.setEstimatedDelivery
+  orderController.setEstimatedDelivery,
 );
 
 // Delete order (admin only)
-router.delete(
-  '/:orderId',
-  auth('admin'),
-  orderController.deleteOrder
-);
+router.delete('/:orderId', auth('admin'), orderController.deleteOrder);
 
 export const orderRoutes = router;

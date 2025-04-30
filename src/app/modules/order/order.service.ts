@@ -245,33 +245,43 @@ const sendProviderOrderNotifications = async (orderId: string) => {
     // Get the order with populated meal details
     const order = await OrderModel.findById(orderId).populate({
       path: 'meals.mealId',
-      select: 'name providerId ingredients price image category'
+      select: 'name providerId ingredients price image category',
     });
 
     if (!order) {
-      console.error(`Cannot send provider notifications: Order ${orderId} not found`);
+      console.error(
+        `Cannot send provider notifications: Order ${orderId} not found`,
+      );
       return;
     }
 
-    console.log(`Preparing to send provider notifications for order: ${orderId}`);
+    console.log(
+      `Preparing to send provider notifications for order: ${orderId}`,
+    );
 
     // Group meals by provider ID
     const mealsByProvider: Record<string, any[]> = {};
-    
+
     // Process each meal in the order
-    order.meals.forEach(meal => {
-      if (meal.mealId && typeof meal.mealId === 'object' && 'providerId' in meal.mealId) {
+    order.meals.forEach((meal) => {
+      if (
+        meal.mealId &&
+        typeof meal.mealId === 'object' &&
+        'providerId' in meal.mealId
+      ) {
         const providerId = String(meal.mealId.providerId);
-        
+
         if (!mealsByProvider[providerId]) {
           mealsByProvider[providerId] = [];
         }
-        
+
         mealsByProvider[providerId].push(meal);
       }
     });
 
-    console.log(`Found ${Object.keys(mealsByProvider).length} providers to notify`);
+    console.log(
+      `Found ${Object.keys(mealsByProvider).length} providers to notify`,
+    );
 
     // Create a transporter for sending emails
     const transporter = nodemailer.createTransport({
@@ -284,59 +294,75 @@ const sendProviderOrderNotifications = async (orderId: string) => {
       },
       // Add these options for better deliverability
       tls: {
-        rejectUnauthorized: false // Helps with self-signed certificates
+        rejectUnauthorized: false, // Helps with self-signed certificates
       },
       pool: true, // Use connection pool for better reliability
       maxConnections: 5,
-      maxMessages: 100
+      maxMessages: 100,
     });
 
     // For each provider, find their email and send a notification
-    const notificationPromises = Object.entries(mealsByProvider).map(async ([providerId, meals]) => {
-      try {
-        // Find the provider's email
-        const provider = await UserModel.findById(providerId);
-        
-        if (!provider || !provider.email) {
-          console.error(`Cannot send notification: Provider ${providerId} not found or has no email`);
-          return;
+    const notificationPromises = Object.entries(mealsByProvider).map(
+      async ([providerId, meals]) => {
+        try {
+          // Find the provider's email
+          const provider = await UserModel.findById(providerId);
+
+          if (!provider || !provider.email) {
+            console.error(
+              `Cannot send notification: Provider ${providerId} not found or has no email`,
+            );
+            return;
+          }
+
+          console.log(
+            `Sending order notification to provider ${provider.name} (${provider.email})`,
+          );
+
+          // Generate email content specific to this provider's meals
+          const emailHtml = orderUtils.generateProviderOrderNotificationEmail(
+            order,
+            meals,
+          );
+
+          // Send the email with improved headers
+          const mailResult = await transporter.sendMail({
+            from: {
+              name: 'FeedMe Orders',
+              address: config.EMAIL_USER || 'noreply@feedme.com', // Provide fallback
+            },
+            to: provider.email,
+            subject: `FeedMe - New Order Notification #${order.trackingNumber}`,
+            html: emailHtml,
+            headers: {
+              'X-Priority': '1', // High priority
+              Importance: 'high',
+              'X-MSMail-Priority': 'High',
+              Precedence: 'bulk',
+            },
+            // Add text version for better deliverability
+            text: `New Order Received! You have received a new order #${order.trackingNumber} that includes your meals. Please log in to your account to view the complete details.`,
+          });
+
+          const messageId = mailResult?.messageId || 'No message ID';
+          console.log(
+            `Email sent to provider ${provider.email}, message ID: ${messageId}`,
+          );
+          return mailResult;
+        } catch (providerError) {
+          console.error(
+            `Error sending notification to provider ${providerId}:`,
+            providerError,
+          );
         }
-
-        console.log(`Sending order notification to provider ${provider.name} (${provider.email})`);
-
-        // Generate email content specific to this provider's meals
-        const emailHtml = orderUtils.generateProviderOrderNotificationEmail(order, meals);
-        
-        // Send the email with improved headers
-        const mailResult = await transporter.sendMail({
-          from: {
-            name: "FeedMe Orders",
-            address: config.EMAIL_USER || 'noreply@feedme.com' // Provide fallback
-          },
-          to: provider.email,
-          subject: `FeedMe - New Order Notification #${order.trackingNumber}`,
-          html: emailHtml,
-          headers: {
-            'X-Priority': '1', // High priority
-            'Importance': 'high',
-            'X-MSMail-Priority': 'High',
-            'Precedence': 'bulk'
-          },
-          // Add text version for better deliverability
-          text: `New Order Received! You have received a new order #${order.trackingNumber} that includes your meals. Please log in to your account to view the complete details.`
-        });
-
-        const messageId = mailResult?.messageId || 'No message ID';
-        console.log(`Email sent to provider ${provider.email}, message ID: ${messageId}`);
-        return mailResult;
-      } catch (providerError) {
-        console.error(`Error sending notification to provider ${providerId}:`, providerError);
-      }
-    });
+      },
+    );
 
     // Wait for all notification emails to be sent
     await Promise.all(notificationPromises);
-    console.log(`Completed sending provider notifications for order ${orderId}`);
+    console.log(
+      `Completed sending provider notifications for order ${orderId}`,
+    );
   } catch (error) {
     console.error('Error sending provider order notifications:', error);
   }
@@ -345,34 +371,41 @@ const sendProviderOrderNotifications = async (orderId: string) => {
 const verifyPayment = async (order_id: string) => {
   try {
     // Find the order from database
-    const order = await OrderModel.findOne({ 'transaction.id': order_id }) || 
-                  await OrderModel.findById(order_id);
-    
+    const order =
+      (await OrderModel.findOne({ 'transaction.id': order_id })) ||
+      (await OrderModel.findById(order_id));
+
     if (!order) {
       throw new AppError(httpStatus.NOT_FOUND, 'Order not found');
     }
-    
+
     console.log('Order found for verification:', {
       id: order._id,
       email: order.email,
       name: order.name,
-      mealsCount: order.meals?.length || 0
+      mealsCount: order.meals?.length || 0,
     });
-    
+
     // Get tracking number from the actual order
     const trackingNumber = order.trackingNumber;
-    
+
     // Try to verify with ShurjoPay
     const verifiedPayment = await orderUtils.verifyPaymentAsync(order_id);
-    
+
     // Log the received payment data for debugging
-    console.log('ShurjoPay verification response:', JSON.stringify(verifiedPayment, null, 2));
-    
+    console.log(
+      'ShurjoPay verification response:',
+      JSON.stringify(verifiedPayment, null, 2),
+    );
+
     // Check if the payment verification failed or returned an error
-    if (!verifiedPayment || 
-        (Array.isArray(verifiedPayment) && verifiedPayment.length > 0 && verifiedPayment[0].sp_code !== "200") ||
-        (!Array.isArray(verifiedPayment) && verifiedPayment.sp_code !== "200")) {
-      
+    if (
+      !verifiedPayment ||
+      (Array.isArray(verifiedPayment) &&
+        verifiedPayment.length > 0 &&
+        verifiedPayment[0].sp_code !== '200') ||
+      (!Array.isArray(verifiedPayment) && verifiedPayment.sp_code !== '200')
+    ) {
       // Create a response with real order data
       const dynamicResponse = [
         {
@@ -380,7 +413,7 @@ const verifyPayment = async (order_id: string) => {
           order_id: order_id,
           tracking_number: trackingNumber,
           transaction_id: order.transaction?.id || order_id,
-          currency: "BDT",
+          currency: 'BDT',
           amount: order.totalPrice,
           payable_amount: order.totalPrice,
           discount_amount: 0,
@@ -388,59 +421,69 @@ const verifyPayment = async (order_id: string) => {
           received_amount: order.totalPrice,
           usd_amt: parseFloat((order.totalPrice / 107.05).toFixed(2)),
           usd_rate: 107.05,
-          transaction_status: "Completed",
-          method: verifiedPayment && Array.isArray(verifiedPayment) && verifiedPayment.length > 0 && verifiedPayment[0].method 
-                  ? verifiedPayment[0].method 
-                  : "Visa/Mastercard/Other Card",
-          sp_message: "Success",
-          sp_code: "200",
-          bank_status: "Success",
-          name: order.name || "Customer Name",
-          email: order.email || "customer@example.com",
-          phone: order.phone || "01XXXXXXXXX",
-          address: order.address || "Customer Address",
-          city: order.city || "Customer City",
-          date_time: new Date().toISOString().replace('T', ' ').substring(0, 19),
+          transaction_status: 'Completed',
+          method:
+            verifiedPayment &&
+            Array.isArray(verifiedPayment) &&
+            verifiedPayment.length > 0 &&
+            verifiedPayment[0].method
+              ? verifiedPayment[0].method
+              : 'Visa/Mastercard/Other Card',
+          sp_message: 'Success',
+          sp_code: '200',
+          bank_status: 'Success',
+          name: order.name || 'Customer Name',
+          email: order.email || 'customer@example.com',
+          phone: order.phone || '01XXXXXXXXX',
+          address: order.address || 'Customer Address',
+          city: order.city || 'Customer City',
+          date_time: new Date()
+            .toISOString()
+            .replace('T', ' ')
+            .substring(0, 19),
           value1: `Order contains ${order.meals?.length || (order as any).products?.length || 0} items`,
           value2: `Subtotal: ${order.subtotal || order.totalPrice}`,
           value3: `Tax: ${order.tax || 0}`,
-          value4: `Shipping: ${order.shipping || 0}`
-        }
+          value4: `Shipping: ${order.shipping || 0}`,
+        },
       ];
-      
+
       // Update order with successful payment status
-      await OrderModel.findByIdAndUpdate(
-        order._id,
-        {
-          'transaction.bank_status': "Success",
-          'transaction.sp_code': "200",
-          'transaction.sp_message': "Success",
-          'transaction.transaction_status': "Completed",
-          'transaction.date_time': new Date(),
-          status: 'Paid',
-          estimatedDeliveryDate: new Date(new Date().setDate(new Date().getDate() + 7))
-        }
-      );
+      await OrderModel.findByIdAndUpdate(order._id, {
+        'transaction.bank_status': 'Success',
+        'transaction.sp_code': '200',
+        'transaction.sp_message': 'Success',
+        'transaction.transaction_status': 'Completed',
+        'transaction.date_time': new Date(),
+        status: 'Paid',
+        estimatedDeliveryDate: new Date(
+          new Date().setDate(new Date().getDate() + 7),
+        ),
+      });
 
       try {
         // Get updated order data with populated meals (NOT products)
         const updatedOrder = await OrderModel.findById(order._id).populate({
           path: 'meals.mealId',
-          select: 'name price image'
+          select: 'name price image',
         });
 
         console.log('Order updated for email sending:', {
           id: updatedOrder?._id,
           email: updatedOrder?.email,
           mealsCount: updatedOrder?.meals?.length || 0,
-          hasEmail: Boolean(updatedOrder?.email)
+          hasEmail: Boolean(updatedOrder?.email),
         });
 
         if (updatedOrder && updatedOrder.email) {
           // Generate the email content
-          const emailHtml = orderUtils.generateOrderConfirmationEmail(updatedOrder);
-          
-          console.log('Attempting to send order confirmation email to:', updatedOrder.email);
+          const emailHtml =
+            orderUtils.generateOrderConfirmationEmail(updatedOrder);
+
+          console.log(
+            'Attempting to send order confirmation email to:',
+            updatedOrder.email,
+          );
 
           // Try with direct nodemailer usage like forgotPassword
           const transporter = nodemailer.createTransport({
@@ -453,11 +496,11 @@ const verifyPayment = async (order_id: string) => {
             },
             // Add these options for better deliverability
             tls: {
-              rejectUnauthorized: false
+              rejectUnauthorized: false,
             },
             pool: true,
             maxConnections: 5,
-            maxMessages: 100
+            maxMessages: 100,
           });
 
           console.log('Transporter created for direct email sending');
@@ -465,36 +508,36 @@ const verifyPayment = async (order_id: string) => {
           // Send email directly using nodemailer
           const mailResult = await transporter.sendMail({
             from: {
-              name: "FeedMe Support",
-              address: config.EMAIL_USER || 'noreply@feedme.com'
+              name: 'FeedMe Support',
+              address: config.EMAIL_USER || 'noreply@feedme.com',
             },
             to: updatedOrder.email,
             subject: `FeedMe - Order Confirmation #${updatedOrder.trackingNumber}`,
             html: emailHtml,
             headers: {
               'X-Priority': '1',
-              'Importance': 'high',
+              Importance: 'high',
               'X-MSMail-Priority': 'High',
-              'Precedence': 'bulk'
+              Precedence: 'bulk',
             },
-            text: `Thank you for your order #${updatedOrder.trackingNumber}! We're preparing your delicious meals right now. You can track your order using your tracking number.`
+            text: `Thank you for your order #${updatedOrder.trackingNumber}! We're preparing your delicious meals right now. You can track your order using your tracking number.`,
           });
 
           const messageId = mailResult?.messageId || 'No message ID';
-          console.log('Direct email sending result:', {messageId});
-          
+          console.log('Direct email sending result:', { messageId });
+
           // Send notifications to providers with meals in this order
           await sendProviderOrderNotifications(order._id.toString());
-          
+
           return dynamicResponse;
         }
       } catch (emailError) {
         console.error('Failed to send order confirmation email:', emailError);
       }
-      
+
       return dynamicResponse;
     }
-    
+
     // Handle actual successful response
     if (Array.isArray(verifiedPayment) && verifiedPayment.length > 0) {
       const payment = verifiedPayment[0];
@@ -531,27 +574,25 @@ const verifyPayment = async (order_id: string) => {
         updateData.estimatedDeliveryDate = estimatedDeliveryDate;
       }
 
-      await OrderModel.findByIdAndUpdate(
-        order._id,
-        updateData,
-      );
-      
+      await OrderModel.findByIdAndUpdate(order._id, updateData);
+
       // Add real order data to the payment response without overwriting existing values
       payment.tracking_number = trackingNumber;
       payment.transaction_id = order.transaction?.id || order_id;
-      
+
       // Only set these fields if they don't already exist in the response
-      if (!payment.name) payment.name = order.name || "Customer Name";
-      if (!payment.email) payment.email = order.email || "customer@example.com";
-      if (!payment.phone) payment.phone = order.phone || "01XXXXXXXXX";
-      if (!payment.address) payment.address = order.address || "Customer Address";
-      if (!payment.city) payment.city = order.city || "Customer City";
-      
+      if (!payment.name) payment.name = order.name || 'Customer Name';
+      if (!payment.email) payment.email = order.email || 'customer@example.com';
+      if (!payment.phone) payment.phone = order.phone || '01XXXXXXXXX';
+      if (!payment.address)
+        payment.address = order.address || 'Customer Address';
+      if (!payment.city) payment.city = order.city || 'Customer City';
+
       // DO NOT overwrite the payment method if it already exists
       if (!payment.method) {
-        payment.method = "Visa/Mastercard/Other Card";
+        payment.method = 'Visa/Mastercard/Other Card';
       }
-      
+
       // Add order details as custom values if they don't already exist
       if (!payment.value1) {
         payment.value1 = `Order contains ${order.meals?.length || (order as any).products?.length || 0} items`;
@@ -572,21 +613,25 @@ const verifyPayment = async (order_id: string) => {
           // Get updated order data with populated meals (NOT products)
           const updatedOrder = await OrderModel.findById(order._id).populate({
             path: 'meals.mealId',
-            select: 'name price image'
+            select: 'name price image',
           });
 
           console.log('Order updated (successful payment) for email sending:', {
             id: updatedOrder?._id,
             email: updatedOrder?.email,
             mealsCount: updatedOrder?.meals?.length || 0,
-            hasEmail: Boolean(updatedOrder?.email)
+            hasEmail: Boolean(updatedOrder?.email),
           });
 
           if (updatedOrder && updatedOrder.email) {
             // Generate the email content
-            const emailHtml = orderUtils.generateOrderConfirmationEmail(updatedOrder);
-            
-            console.log('Attempting to send order confirmation email to:', updatedOrder.email);
+            const emailHtml =
+              orderUtils.generateOrderConfirmationEmail(updatedOrder);
+
+            console.log(
+              'Attempting to send order confirmation email to:',
+              updatedOrder.email,
+            );
 
             // Try with direct nodemailer usage like forgotPassword
             const transporter = nodemailer.createTransport({
@@ -599,11 +644,11 @@ const verifyPayment = async (order_id: string) => {
               },
               // Add these options for better deliverability
               tls: {
-                rejectUnauthorized: false
+                rejectUnauthorized: false,
               },
               pool: true,
               maxConnections: 5,
-              maxMessages: 100
+              maxMessages: 100,
             });
 
             console.log('Transporter created for direct email sending');
@@ -611,24 +656,24 @@ const verifyPayment = async (order_id: string) => {
             // Send email directly using nodemailer
             const mailResult = await transporter.sendMail({
               from: {
-                name: "FeedMe Support",
-                address: config.EMAIL_USER || 'noreply@feedme.com'
+                name: 'FeedMe Support',
+                address: config.EMAIL_USER || 'noreply@feedme.com',
               },
               to: updatedOrder.email,
               subject: `FeedMe - Order Confirmation #${updatedOrder.trackingNumber}`,
               html: emailHtml,
               headers: {
                 'X-Priority': '1',
-                'Importance': 'high',
+                Importance: 'high',
                 'X-MSMail-Priority': 'High',
-                'Precedence': 'bulk'
+                Precedence: 'bulk',
               },
-              text: `Thank you for your order #${updatedOrder.trackingNumber}! We're preparing your delicious meals right now. You can track your order using your tracking number.`
+              text: `Thank you for your order #${updatedOrder.trackingNumber}! We're preparing your delicious meals right now. You can track your order using your tracking number.`,
             });
 
             const messageId = mailResult?.messageId || 'No message ID';
-            console.log('Direct email sending result:', {messageId});
-            
+            console.log('Direct email sending result:', { messageId });
+
             // Send notifications to providers with meals in this order
             await sendProviderOrderNotifications(order._id.toString());
           }
@@ -641,12 +686,13 @@ const verifyPayment = async (order_id: string) => {
     return verifiedPayment;
   } catch (error) {
     console.error('Payment verification error:', error);
-    
+
     // Try to find the order even if verification failed
     try {
-      const order = await OrderModel.findOne({ 'transaction.id': order_id }) || 
-                    await OrderModel.findById(order_id);
-      
+      const order =
+        (await OrderModel.findOne({ 'transaction.id': order_id })) ||
+        (await OrderModel.findById(order_id));
+
       if (order) {
         // Return a response with real order data
         return [
@@ -655,7 +701,7 @@ const verifyPayment = async (order_id: string) => {
             order_id: order_id,
             tracking_number: order.trackingNumber,
             transaction_id: order.transaction?.id || order_id,
-            currency: "BDT",
+            currency: 'BDT',
             amount: order.totalPrice,
             payable_amount: order.totalPrice,
             discount_amount: 0,
@@ -663,32 +709,35 @@ const verifyPayment = async (order_id: string) => {
             received_amount: order.totalPrice,
             usd_amt: parseFloat((order.totalPrice / 107.05).toFixed(2)),
             usd_rate: 107.05,
-            transaction_status: "Completed",
-            method: "Visa/Mastercard/Other Card",
-            sp_message: "Success",
-            sp_code: "200",
-            bank_status: "Success",
-            name: order.name || "Customer Name",
-            email: order.email || "customer@example.com",
-            phone: order.phone || "01XXXXXXXXX",
-            address: order.address || "Customer Address",
-            city: order.city || "Customer City",
-            date_time: new Date().toISOString().replace('T', ' ').substring(0, 19),
+            transaction_status: 'Completed',
+            method: 'Visa/Mastercard/Other Card',
+            sp_message: 'Success',
+            sp_code: '200',
+            bank_status: 'Success',
+            name: order.name || 'Customer Name',
+            email: order.email || 'customer@example.com',
+            phone: order.phone || '01XXXXXXXXX',
+            address: order.address || 'Customer Address',
+            city: order.city || 'Customer City',
+            date_time: new Date()
+              .toISOString()
+              .replace('T', ' ')
+              .substring(0, 19),
             value1: `Order contains ${order.meals?.length || (order as any).products?.length || 0} items`,
             value2: `Subtotal: ${order.subtotal || order.totalPrice}`,
             value3: `Tax: ${order.tax || 0}`,
-            value4: `Shipping: ${order.shipping || 0}`
-          }
+            value4: `Shipping: ${order.shipping || 0}`,
+          },
         ];
       }
     } catch (innerError) {
       console.error('Error retrieving order details:', innerError);
     }
-    
+
     // If all else fails, return a basic error response
     throw new AppError(
       httpStatus.BAD_REQUEST,
-      'Failed to verify payment. Please check the order ID.'
+      'Failed to verify payment. Please check the order ID.',
     );
   }
 };
@@ -721,7 +770,8 @@ const getDetails = async () => {
 const getOrderByTrackingNumber = async (trackingNumber: string) => {
   const order = await OrderModel.findOne({ trackingNumber }).populate({
     path: 'meals.mealId',
-    select: 'name providerId ingredients portionSize price image category description preparationTime isAvailable nutritionalInfo'
+    select:
+      'name providerId ingredients portionSize price image category description preparationTime isAvailable nutritionalInfo',
   });
 
   if (!order) {
@@ -736,7 +786,8 @@ const getOrderByTrackingNumber = async (trackingNumber: string) => {
 const getOrderById = async (orderId: string) => {
   const order = await OrderModel.findById(orderId).populate({
     path: 'meals.mealId',
-    select: 'name providerId ingredients portionSize price image category description preparationTime isAvailable nutritionalInfo'
+    select:
+      'name providerId ingredients portionSize price image category description preparationTime isAvailable nutritionalInfo',
   });
 
   if (!order) {
@@ -837,7 +888,8 @@ const getUserOrders = async (userId: string) => {
   const orders = await OrderModel.find({ user: userId })
     .populate({
       path: 'meals.mealId',
-      select: 'name providerId ingredients portionSize price image category description preparationTime isAvailable nutritionalInfo'
+      select:
+        'name providerId ingredients portionSize price image category description preparationTime isAvailable nutritionalInfo',
     })
     .select('-trackingStages') // Exclude trackingStages from the response
     .sort({ createdAt: -1 });
@@ -863,54 +915,66 @@ const getProviderOrders = async (providerId: string) => {
     console.log('No provider ID specified, returning empty result');
     return [];
   }
-  
+
   console.log('Getting orders for provider:', providerId);
-  
+
   // First check - directly query MealMenu to verify provider exists
   try {
     const providerMeals = await MealMenuModel.find({ providerId }).limit(1);
-    console.log(`Provider meals check: ${providerMeals.length > 0 ? 'Found meals' : 'No meals found'}`);
-    
+    console.log(
+      `Provider meals check: ${providerMeals.length > 0 ? 'Found meals' : 'No meals found'}`,
+    );
+
     if (providerMeals.length > 0) {
       // Log a sample meal to verify structure
-      console.log('Sample meal structure:', JSON.stringify({
-        id: providerMeals[0]._id,
-        name: providerMeals[0].name,
-        providerId: providerMeals[0].providerId
-      }, null, 2));
+      console.log(
+        'Sample meal structure:',
+        JSON.stringify(
+          {
+            id: providerMeals[0]._id,
+            name: providerMeals[0].name,
+            providerId: providerMeals[0].providerId,
+          },
+          null,
+          2,
+        ),
+      );
     }
   } catch (error) {
     console.error('Error checking provider meals:', error);
   }
-  
+
   try {
     // DIRECT APPROACH: Find all meals from this provider first
     const providerMealIds = await MealMenuModel.find({ providerId })
       .select('_id')
       .lean();
-    
+
     if (!providerMealIds.length) {
       console.log('No meals found for this provider');
       return [];
     }
-    
+
     // Extract just the ID values into an array
-    const mealIdList = providerMealIds.map(meal => meal._id);
+    const mealIdList = providerMealIds.map((meal) => meal._id);
     console.log(`Found ${mealIdList.length} meal IDs for this provider`);
-    
+
     // Now find orders that contain any of these meals
     const orders = await OrderModel.find({
-      'meals.mealId': { $in: mealIdList }
+      'meals.mealId': { $in: mealIdList },
     })
-    .populate({
-      path: 'meals.mealId',
-      select: 'name providerId ingredients portionSize price image category description preparationTime isAvailable nutritionalInfo'
-    })
-    .select('-trackingStages')
-    .sort({ createdAt: -1 });
-    
-    console.log(`Found ${orders.length} orders containing meals from provider ${providerId}`);
-    
+      .populate({
+        path: 'meals.mealId',
+        select:
+          'name providerId ingredients portionSize price image category description preparationTime isAvailable nutritionalInfo',
+      })
+      .select('-trackingStages')
+      .sort({ createdAt: -1 });
+
+    console.log(
+      `Found ${orders.length} orders containing meals from provider ${providerId}`,
+    );
+
     return orders;
   } catch (error) {
     console.error('Error finding provider orders:', error);
@@ -957,7 +1021,7 @@ const createOrderFromCart = async (
       if (item.customization?.addOns && item.customization.addOns.length > 0) {
         const addOnsTotal = item.customization.addOns.reduce(
           (sum, addon) => sum + addon.price,
-          0
+          0,
         );
         itemPrice += addOnsTotal;
       }
@@ -969,7 +1033,8 @@ const createOrderFromCart = async (
         removedIngredients: item.customization?.removedIngredients || [],
         addOns: item.customization?.addOns || [],
         spiceLevel: item.customization?.spiceLevel || undefined,
-        specialInstructions: item.customization?.specialInstructions || undefined
+        specialInstructions:
+          item.customization?.specialInstructions || undefined,
       };
 
       return {
@@ -977,7 +1042,7 @@ const createOrderFromCart = async (
         quantity: item.quantity,
         price: itemPrice,
         subtotal: itemSubtotal,
-        customization
+        customization,
       };
     }),
   );
@@ -1047,11 +1112,11 @@ const createOrderFromCart = async (
   }
 
   // Populate the meal details
-  const populatedOrder = await OrderModel.findById(order._id)
-    .populate({
-      path: 'meals.mealId',
-      select: 'name providerId ingredients portionSize price image category description preparationTime isAvailable nutritionalInfo'
-    });
+  const populatedOrder = await OrderModel.findById(order._id).populate({
+    path: 'meals.mealId',
+    select:
+      'name providerId ingredients portionSize price image category description preparationTime isAvailable nutritionalInfo',
+  });
 
   return {
     status: true,
@@ -1064,18 +1129,18 @@ const createOrderFromCart = async (
         trackingNumber: order.trackingNumber,
         totalPrice: order.totalPrice,
         status: order.status,
-        meals: populatedOrder?.meals.map(meal => ({
+        meals: populatedOrder?.meals.map((meal) => ({
           customization: meal.customization,
           mealId: meal.mealId,
           quantity: meal.quantity,
           price: meal.price,
           subtotal: meal.subtotal,
-          _id: (meal as any)._id
+          _id: (meal as any)._id,
         })),
         deliveryDate: order.deliveryDate,
-        deliverySlot: order.deliverySlot
-      }
-    }
+        deliverySlot: order.deliverySlot,
+      },
+    },
   };
 };
 

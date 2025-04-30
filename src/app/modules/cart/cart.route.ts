@@ -18,57 +18,49 @@ router.post(
   '/',
   auth(ENUM_USER_ROLE.CUSTOMER),
   validateRequest(CartValidation.addToCartValidationSchema),
-  CartControllers.addToCart
+  CartControllers.addToCart,
 );
 
 // Get user's cart
-router.get(
-  '/',
-  auth(ENUM_USER_ROLE.CUSTOMER),
-  CartControllers.getCart
-);
+router.get('/', auth(ENUM_USER_ROLE.CUSTOMER), CartControllers.getCart);
 
 // Update cart item
 router.patch(
   '/item/:mealId',
   auth(ENUM_USER_ROLE.CUSTOMER),
   validateRequest(CartValidation.updateCartItemValidationSchema),
-  CartControllers.updateCartItem
+  CartControllers.updateCartItem,
 );
 
 // Remove cart item
 router.delete(
   '/item/:mealId',
   auth(ENUM_USER_ROLE.CUSTOMER),
-  CartControllers.removeCartItem
+  CartControllers.removeCartItem,
 );
 
 // Clear cart
-router.delete(
-  '/',
-  auth(ENUM_USER_ROLE.CUSTOMER),
-  CartControllers.clearCart
-);
+router.delete('/', auth(ENUM_USER_ROLE.CUSTOMER), CartControllers.clearCart);
 
 // Get cart by user email
 router.get(
   '/by-email',
   auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.PROVIDER, ENUM_USER_ROLE.CUSTOMER),
-  CartControllers.getCartByEmail
+  CartControllers.getCartByEmail,
 );
 
 // Delete cart by user email
 router.delete(
   '/by-email',
   auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.PROVIDER, ENUM_USER_ROLE.CUSTOMER),
-  CartControllers.deleteCartByEmail
+  CartControllers.deleteCartByEmail,
 );
 
 // Remove specific meal from cart by user email
 router.delete(
   '/by-email/item/:mealId',
   auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.PROVIDER, ENUM_USER_ROLE.CUSTOMER),
-  CartControllers.removeItemByEmail
+  CartControllers.removeItemByEmail,
 );
 
-export default router; 
+export default router;

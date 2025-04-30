@@ -1,4 +1,9 @@
-import express, { NextFunction, Request, Response, RequestHandler } from 'express';
+import express, {
+  NextFunction,
+  Request,
+  Response,
+  RequestHandler,
+} from 'express';
 import { MealMenuControllers } from './mealMenu.controller';
 import { MealMenuValidation } from './mealMenu.validation';
 import validateRequest from '../../middleware/validateRequest';
@@ -35,10 +40,7 @@ router.post(
   '/',
   auth(ENUM_USER_ROLE.PROVIDER),
   (req: Request, res: Response, next: NextFunction) => {
-    console.log(
-      'Incoming request for meal menu creation with body:',
-      req.body,
-    );
+    console.log('Incoming request for meal menu creation with body:', req.body);
     next();
   },
   upload.single('file'),
@@ -56,7 +58,10 @@ router.post(
           res.status(400).json({
             success: false,
             message: 'Invalid JSON format in data field',
-            error: parseError instanceof Error ? parseError.message : 'JSON parse error',
+            error:
+              parseError instanceof Error
+                ? parseError.message
+                : 'JSON parse error',
           });
           return;
         }
@@ -73,7 +78,7 @@ router.post(
             req.body.image = secure_url;
             next();
           })
-          .catch(error => {
+          .catch((error) => {
             next(error);
           });
       } else {
@@ -94,7 +99,7 @@ router.get('/', MealMenuControllers.getMealMenus);
 router.get(
   '/provider-menus',
   auth(ENUM_USER_ROLE.PROVIDER),
-  MealMenuControllers.getProviderMenusByEmail
+  MealMenuControllers.getProviderMenusByEmail,
 );
 
 // 4. Get Provider's Meal Menus by ID
@@ -104,17 +109,18 @@ router.get('/provider/:providerId', MealMenuControllers.getProviderMealMenus);
 router.get('/:id', MealMenuControllers.getSpecificMealMenu);
 
 // 5. Delete a Meal Menu
-router.delete('/:id', auth(ENUM_USER_ROLE.PROVIDER), MealMenuControllers.deleteMealMenu);
+router.delete(
+  '/:id',
+  auth(ENUM_USER_ROLE.PROVIDER),
+  MealMenuControllers.deleteMealMenu,
+);
 
 // 6. Update a Meal Menu
 router.patch(
   '/:id',
   auth(ENUM_USER_ROLE.PROVIDER),
   (req: Request, res: Response, next: NextFunction) => {
-    console.log(
-      'Incoming request for meal menu update with body:',
-      req.body,
-    );
+    console.log('Incoming request for meal menu update with body:', req.body);
     next();
   },
   upload.single('file'),
@@ -132,7 +138,10 @@ router.patch(
           res.status(400).json({
             success: false,
             message: 'Invalid JSON format in data field',
-            error: parseError instanceof Error ? parseError.message : 'JSON parse error',
+            error:
+              parseError instanceof Error
+                ? parseError.message
+                : 'JSON parse error',
           });
           return;
         }
@@ -149,7 +158,7 @@ router.patch(
             req.body.image = secure_url;
             next();
           })
-          .catch(error => {
+          .catch((error) => {
             next(error);
           });
       } else {
@@ -180,7 +189,7 @@ router.post(
         userId,
         rating,
         comment,
-        userName
+        userName,
       );
 
       const currentDate = new Date();
@@ -192,13 +201,13 @@ router.post(
         data: {
           ...result.toObject(),
           reviewDate: currentDate,
-          customerName: userName
+          customerName: userName,
         },
       });
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 // Update meal quantity
@@ -222,7 +231,7 @@ router.patch(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
-export const MealMenuRoutes = router; 
+export const MealMenuRoutes = router;

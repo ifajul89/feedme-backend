@@ -51,5 +51,3 @@ export type MealTypes = {
     };
   };
 };
-
- 

@@ -12,7 +12,7 @@ const sendEmail = async (options: EmailOptions) => {
   console.log('Email config:', {
     host: config.EMAIL_HOST,
     port: Number(config.EMAIL_PORT),
-    secure: config.EMAIL_PORT === '465'
+    secure: config.EMAIL_PORT === '465',
   });
 
   try {
@@ -38,7 +38,7 @@ const sendEmail = async (options: EmailOptions) => {
 
     console.log('Email sent successfully:', {
       messageId: info.messageId,
-      response: info.response
+      response: info.response,
     });
 
     return info;
@@ -48,4 +48,4 @@ const sendEmail = async (options: EmailOptions) => {
   }
 };
 
-export default sendEmail; 
+export default sendEmail;

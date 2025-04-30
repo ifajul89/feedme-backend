@@ -8,7 +8,7 @@ const createOrderZodSchema = z.object({
         product: z.string(),
         quantity: z.number().min(1),
         price: z.number().optional(),
-      })
+      }),
     ),
     name: z.string(),
     email: z.string().email(),
@@ -29,7 +29,7 @@ const createOrderFromCartZodSchema = z.object({
     city: z.string(),
     zipCode: z.string(),
     deliveryDate: z.string().transform((date) => new Date(date)),
-    deliverySlot: z.string()
+    deliverySlot: z.string(),
   }),
 });
 

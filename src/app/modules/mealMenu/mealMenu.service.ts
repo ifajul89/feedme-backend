@@ -19,10 +19,13 @@ const createMealMenuInDB = async (mealMenu: MealTypes['TMealMenu']) => {
     // Create meal menu in database
     console.log('Creating meal menu in database');
     const result = await MealMenuModel.create(mealMenu);
-    
+
     // Populate the provider information after creation
-    const populatedResult = await MealMenuModel.findById(result._id).populate('providerId', 'name email');
-    
+    const populatedResult = await MealMenuModel.findById(result._id).populate(
+      'providerId',
+      'name email',
+    );
+
     console.log('Meal menu created with ID:', result._id);
     return populatedResult;
   } catch (error) {
@@ -97,13 +100,16 @@ const getAllMealMenusFromDb = async (query: Record<string, unknown>) => {
 const getSpecificMealMenu = async (id: string) => {
   try {
     console.log('Attempting to find meal menu with ID:', id);
-    const result = await MealMenuModel.findById(id).populate('providerId', 'name email');
-    
+    const result = await MealMenuModel.findById(id).populate(
+      'providerId',
+      'name email',
+    );
+
     if (!result) {
       console.log('No meal menu found with ID:', id);
       throw new Error(`Meal menu with id ${id} not found`);
     }
-    
+
     console.log('Found meal menu:', result);
     return result;
   } catch (error) {
@@ -113,7 +119,10 @@ const getSpecificMealMenu = async (id: string) => {
 };
 
 // 4. Update a Meal Menu
-const updateMealMenu = async (id: string, data: Partial<MealTypes['TMealMenu']>) => {
+const updateMealMenu = async (
+  id: string,
+  data: Partial<MealTypes['TMealMenu']>,
+) => {
   try {
     // If a file path or base64 data is provided, upload to cloudinary
     if (
@@ -156,7 +165,10 @@ const deleteMealMenu = async (id: string) => {
 
 // 6. Get Provider's Meal Menus
 const getProviderMealMenus = async (providerId: string) => {
-  const result = await MealMenuModel.find({ providerId }).populate('providerId', 'name email');
+  const result = await MealMenuModel.find({ providerId }).populate(
+    'providerId',
+    'name email',
+  );
   return result;
 };
 
@@ -253,7 +265,7 @@ const addMealRating = async (
   userId: string,
   rating: number,
   comment?: string,
-  userName?: string
+  userName?: string,
 ) => {
   try {
     // Validate rating
@@ -272,7 +284,8 @@ const addMealRating = async (
 
     // Check if user has already reviewed this meal
     const existingReviewIndex = meal.ratings?.reviews?.findIndex(
-      (review: { userId: mongoose.Types.ObjectId | string }) => review.userId.toString() === userId
+      (review: { userId: mongoose.Types.ObjectId | string }) =>
+        review.userId.toString() === userId,
     );
 
     if (existingReviewIndex !== undefined && existingReviewIndex >= 0) {
@@ -293,24 +306,24 @@ const addMealRating = async (
       if (!meal.ratings) {
         meal.ratings = { average: 0, count: 0, reviews: [] };
       }
-      
+
       meal.ratings.reviews?.push({
         userId,
         rating,
         comment,
         date: currentDate,
-        customerName: userName
+        customerName: userName,
       });
-      
+
       // Increment count
-      meal.ratings.count = (meal.ratings.reviews?.length || 0);
+      meal.ratings.count = meal.ratings.reviews?.length || 0;
     }
 
     // Recalculate average rating
     if (meal.ratings && meal.ratings.reviews) {
       const totalRating = meal.ratings.reviews.reduce(
         (sum: number, review: { rating: number }) => sum + review.rating,
-        0
+        0,
       );
       meal.ratings.average = totalRating / meal.ratings.reviews.length;
     }
@@ -332,17 +345,17 @@ const updateMealQuantity = async (mealId: string, quantity: number) => {
     if (quantity < 0) {
       throw new Error('Quantity cannot be negative');
     }
-    
+
     const result = await MealMenuModel.findByIdAndUpdate(
       mealId,
       { quantity },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     ).populate('providerId', 'name email');
-    
+
     if (!result) {
       throw new Error(`Meal with id ${mealId} not found`);
     }
-    
+
     return result;
   } catch (error) {
     console.error('Error updating meal quantity:', error);
@@ -355,21 +368,21 @@ const getProviderMenusByEmail = async (email: string) => {
   // First, find the provider by email
   const UserModel = mongoose.model('User');
   const provider = await UserModel.findOne({ email });
-  
+
   if (!provider) {
     throw new Error(`Provider with email ${email} not found`);
   }
-  
+
   console.log('Found provider:', provider._id);
-  
+
   // Then find all menus created by this provider
   // Convert the ID to string for proper comparison
-  const result = await MealMenuModel.find({ 
-    providerId: provider._id 
+  const result = await MealMenuModel.find({
+    providerId: provider._id,
   }).populate('providerId', 'name email');
-  
+
   console.log(`Found ${result.length} menus for provider with email: ${email}`);
-  
+
   return result;
 };
 
@@ -384,4 +397,4 @@ export const MealMenuServices = {
   addMealRating,
   updateMealQuantity,
   getProviderMenusByEmail,
-}; 
+};

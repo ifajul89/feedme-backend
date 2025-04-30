@@ -114,14 +114,14 @@ const generateOrderConfirmationEmail = (order: any) => {
 
   // Generate items HTML - handle both meals and products
   let itemsHtml = '';
-  
+
   // Check if order has meals (from schema) or products (from some validation)
   const items = order.meals || order.products || [];
-  
+
   items.forEach((item: any) => {
     // Get product/meal name - handle different structures
     let itemName = 'Item';
-    
+
     // Handle meal structure
     if (item.mealId) {
       if (typeof item.mealId === 'object') {
@@ -129,7 +129,7 @@ const generateOrderConfirmationEmail = (order: any) => {
       } else {
         itemName = 'Meal';
       }
-    } 
+    }
     // Handle product structure
     else if (item.product) {
       if (typeof item.product === 'object') {
@@ -138,13 +138,13 @@ const generateOrderConfirmationEmail = (order: any) => {
         itemName = 'Product';
       }
     }
-    
+
     itemsHtml += `
       <tr>
         <td style="padding: 12px; border-bottom: 1px solid #eee;">${itemName}</td>
         <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
         <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">${formatCurrency(item.price || 0)}</td>
-        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">${formatCurrency(item.subtotal || (item.price * item.quantity) || 0)}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">${formatCurrency(item.subtotal || item.price * item.quantity || 0)}</td>
       </tr>
     `;
   });
@@ -242,15 +242,19 @@ const generateOrderConfirmationEmail = (order: any) => {
   `;
 };
 
-const generateProviderOrderNotificationEmail = (order: any, providerMeals: any[]) => {
+const generateProviderOrderNotificationEmail = (
+  order: any,
+  providerMeals: any[],
+) => {
   // Format currency for display
   const formatCurrency = (amount: number) => {
     return `৳${amount.toFixed(2)}`;
   };
 
   // Format the provider's meals in the order
-  const itemsHtml = providerMeals.map((meal) => {
-    return `
+  const itemsHtml = providerMeals
+    .map((meal) => {
+      return `
       <tr>
         <td style="padding: 12px; text-align: left; border-bottom: 1px solid #eee;">
           ${meal.mealId.name}
@@ -266,10 +270,14 @@ const generateProviderOrderNotificationEmail = (order: any, providerMeals: any[]
         </td>
       </tr>
     `;
-  }).join('');
+    })
+    .join('');
 
   // Calculate total for this provider
-  const providerTotal = providerMeals.reduce((sum, meal) => sum + meal.subtotal, 0);
+  const providerTotal = providerMeals.reduce(
+    (sum, meal) => sum + meal.subtotal,
+    0,
+  );
 
   // Email template
   return `

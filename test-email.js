@@ -7,7 +7,7 @@ console.log('Email Config:', {
   EMAIL_HOST: process.env.EMAIL_HOST,
   EMAIL_PORT: process.env.EMAIL_PORT,
   EMAIL_USER: process.env.EMAIL_USER,
-  EMAIL_PASS: process.env.EMAIL_PASS ? '********' : 'not set'
+  EMAIL_PASS: process.env.EMAIL_PASS ? '********' : 'not set',
 });
 
 async function sendTestEmail() {
@@ -24,7 +24,7 @@ async function sendTestEmail() {
     });
 
     console.log('Transporter created, attempting to verify connection...');
-    
+
     // Verify connection
     await transporter.verify();
     console.log('Connection verified successfully!');
@@ -49,24 +49,31 @@ async function sendTestEmail() {
     console.log('Email sent successfully!');
     console.log('Message ID:', info.messageId);
     console.log('Response:', info.response);
-    
+
     if (process.env.EMAIL_HOST.includes('gmail')) {
       console.log('\nNOTE FOR GMAIL USERS:');
-      console.log('1. Make sure 2-factor authentication is enabled on your Google account');
+      console.log(
+        '1. Make sure 2-factor authentication is enabled on your Google account',
+      );
       console.log('2. Use an "App Password" instead of your regular password');
-      console.log('3. Generate App Password: Google Account → Security → App Passwords');
+      console.log(
+        '3. Generate App Password: Google Account → Security → App Passwords',
+      );
     }
-
   } catch (error) {
     console.error('Error sending email:');
     console.error(error);
-    
+
     // Provide specific guidance for common errors
     if (error.code === 'EAUTH') {
-      console.log('\nAUTHENTICATION ERROR: Your username or password was rejected.');
+      console.log(
+        '\nAUTHENTICATION ERROR: Your username or password was rejected.',
+      );
       console.log('If using Gmail:');
       console.log('1. Enable 2-factor authentication');
-      console.log('2. Generate an App Password at: Google Account → Security → App Passwords');
+      console.log(
+        '2. Generate an App Password at: Google Account → Security → App Passwords',
+      );
       console.log('3. Use that App Password in your .env file');
     } else if (error.code === 'ESOCKET') {
       console.log('\nCONNECTION ERROR: Could not connect to the email server.');
@@ -78,4 +85,4 @@ async function sendTestEmail() {
 }
 
 // Run the test
-sendTestEmail(); 
+sendTestEmail();
